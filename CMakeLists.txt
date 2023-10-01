@@ -10,7 +10,8 @@ add_definitions(-DCEF_USE_SANDBOX)
 include_directories(
   src
   ${CEF_BUILD_DIR}
-  "third_party/kproto/include")
+  "third_party/kproto/include"
+  "third_party/json/include")
 
 link_directories(
   ${CEF_BUILD_DIR}/libcef_dll

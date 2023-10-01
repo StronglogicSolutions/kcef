@@ -68,23 +68,19 @@ void SimpleHandler::OnTitleChange(CefRefPtr<CefBrowser> browser,
   }
 }
 
-void SimpleHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
+void SimpleHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser)
+{
   CEF_REQUIRE_UI_THREAD();
-
-  // Add to the list of existing browsers.
-  browser_list_.push_back(browser);
+  browsers_.insert_or_assign(DEFAULT_KCEF_ID, browser);
 }
 
 bool SimpleHandler::DoClose(CefRefPtr<CefBrowser> browser) {
-  CEF_REQUIRE_UI_THREAD();
+  CEF_REQUIRE_UI_THREAD()
+  ;
 
-  // Closing the main window requires special handling. See the DoClose()
-  // documentation in the CEF header for a detailed destription of this
-  // process.
-  if (browser_list_.size() == 1) {
+  if (browsers_.size() == 1)
     // Set a flag to indicate that the window close should be allowed.
     is_closing_ = true;
-  }
 
   // Allow the close. For windowed browsers this will result in the OS close
   // event being sent.
@@ -95,18 +91,18 @@ void SimpleHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
 
   // Remove from the list of existing browsers.
-  BrowserList::iterator bit = browser_list_.begin();
-  for (; bit != browser_list_.end(); ++bit) {
-    if ((*bit)->IsSame(browser)) {
-      browser_list_.erase(bit);
+  browsers_t::iterator pair = browsers_.begin();
+  for (; pair != browsers_.end(); ++pair)
+  {
+    if ((pair->second)->IsSame(browser))
+    {
+      browsers_.erase(pair);
       break;
     }
   }
 
-  if (browser_list_.empty()) {
-    // All browser windows have closed. Quit the application message loop.
+  if (browsers_.empty())
     CefQuitMessageLoop();
-  }
 }
 
 void SimpleHandler::OnLoadError(CefRefPtr<CefBrowser> browser,
@@ -136,7 +132,8 @@ void SimpleHandler::OnLoadError(CefRefPtr<CefBrowser> browser,
   frame->LoadURL(GetDataURI(ss.str(), "text/html"));
 }
 
-void SimpleHandler::CloseAllBrowsers(bool force_close) {
+void SimpleHandler::CloseAllBrowsers(bool force_close)
+{
   if (!CefCurrentlyOn(TID_UI)) {
     // Execute on the UI thread.
     CefPostTask(TID_UI, base::BindOnce(&SimpleHandler::CloseAllBrowsers, this,
@@ -144,14 +141,11 @@ void SimpleHandler::CloseAllBrowsers(bool force_close) {
     return;
   }
 
-  if (browser_list_.empty()) {
+  if (browsers_.empty())
     return;
-  }
 
-  BrowserList::const_iterator it = browser_list_.begin();
-  for (; it != browser_list_.end(); ++it) {
-    (*it)->GetHost()->CloseBrowser(force_close);
-  }
+  for (auto it = browsers_.begin(); it != browsers_.end(); ++it)
+    (*it).second->GetHost()->CloseBrowser(force_close);
 }
 
 // static
@@ -201,4 +195,10 @@ void SimpleHandler::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
   // fallback to the UTF8 property above.
   XStoreName(display, browser->GetHost()->GetWindowHandle(), titleStr.c_str());
 #endif  // defined(CEF_X11)
+}
+
+void SimpleHandler::set_url(const std::string& url)
+{
+  LOG(INFO) << "Setting URL to " << url;
+  browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->LoadURL(url);
 }

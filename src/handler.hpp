@@ -1,14 +1,9 @@
-// Copyright (c) 2013 The Chromium Embedded Framework Authors. All rights
-// reserved. Use of this source code is governed by a BSD-style license that
-// can be found in the LICENSE file.
-
-#ifndef CEF_TESTS_CEFSIMPLE_SIMPLE_HANDLER_H_
-#define CEF_TESTS_CEFSIMPLE_SIMPLE_HANDLER_H_
+#pragma once
 
 #include "include/cef_client.h"
 
 #include <list>
-
+static const int32_t DEFAULT_KCEF_ID = 99;
 class SimpleHandler : public CefClient,
                       public CefDisplayHandler,
                       public CefLifeSpanHandler,
@@ -16,6 +11,8 @@ class SimpleHandler : public CefClient,
  public:
   explicit SimpleHandler(bool use_views);
   ~SimpleHandler();
+
+  void set_url(const std::string& url);
 
   // Provide access to the single global instance of this object.
   static SimpleHandler* GetInstance();
@@ -62,13 +59,11 @@ class SimpleHandler : public CefClient,
   const bool use_views_;
 
   // List of existing browser windows. Only accessed on the CEF UI thread.
-  typedef std::list<CefRefPtr<CefBrowser>> BrowserList;
-  BrowserList browser_list_;
+  typedef std::map<int32_t, CefRefPtr<CefBrowser>> browsers_t;
+  browsers_t browsers_;
 
   bool is_closing_;
 
   // Include the default reference counting implementation.
   IMPLEMENT_REFCOUNTING(SimpleHandler);
 };
-
-#endif  // CEF_TESTS_CEFSIMPLE_SIMPLE_HANDLER_H_
