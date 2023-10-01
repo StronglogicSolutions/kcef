@@ -7,6 +7,10 @@
 #include "include/base/cef_logging.h"
 #include "include/cef_command_line.h"
 
+#include <deque>
+#include <kproto/ipc.hpp>
+#include <zmq.hpp>
+
 #if defined(CEF_X11)
 namespace {
 
@@ -29,6 +33,33 @@ int XIOErrorHandlerImpl(Display* display)
 
 }  // namespace
 #endif  // defined(CEF_X11)
+
+class server : public kiq::IPCHandlerInterface
+{
+ public:
+  bool get_message() const
+  {
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    return false;
+  }
+
+  void process_message(kiq::ipc_message::u_ipc_msg_ptr msg) final
+  {
+    messages_.push_back(std::move(msg));
+  }
+
+ protected:
+  zmq::socket_t& socket() final
+  {
+    return socket_;
+  }
+
+ private:
+  using messages_t = std::deque<kiq::ipc_message::u_ipc_msg_ptr>;
+
+  zmq::socket_t socket_;
+  messages_t    messages_;
+};
 
 int main(int argc, char* argv[])
 {
@@ -56,6 +87,7 @@ int main(int argc, char* argv[])
   settings.no_sandbox = true;
 #endif
 
+  server               kipc_server;
   bool                 shutdown = false;
   CefRefPtr<SimpleApp> app(new SimpleApp);
 
@@ -63,7 +95,12 @@ int main(int argc, char* argv[])
 
   // CefRunMessageLoop();
   while (!shutdown)
+  {
+    if (kipc_server.get_message())
+      (void)("Do something good");
+
     CefDoMessageLoopWork();
+  }
 
   CefShutdown();
 
