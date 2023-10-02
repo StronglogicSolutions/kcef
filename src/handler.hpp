@@ -4,18 +4,18 @@
 
 #include <list>
 static const int32_t DEFAULT_KCEF_ID = 99;
-class SimpleHandler : public CefClient,
-                      public CefDisplayHandler,
-                      public CefLifeSpanHandler,
-                      public CefLoadHandler {
+class KCEFClient : public CefClient,
+                   public CefDisplayHandler,
+                   public CefLifeSpanHandler,
+                   public CefLoadHandler {
  public:
-  explicit SimpleHandler(bool use_views);
-  ~SimpleHandler();
+  explicit KCEFClient(bool use_views);
+  ~KCEFClient();
 
   void set_url(const std::string& url);
 
   // Provide access to the single global instance of this object.
-  static SimpleHandler* GetInstance();
+  static KCEFClient* GetInstance();
 
   // CefClient methods:
   virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler() override {
@@ -65,5 +65,5 @@ class SimpleHandler : public CefClient,
   bool is_closing_;
 
   // Include the default reference counting implementation.
-  IMPLEMENT_REFCOUNTING(SimpleHandler);
+  IMPLEMENT_REFCOUNTING(KCEFClient);
 };

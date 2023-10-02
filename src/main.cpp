@@ -134,7 +134,7 @@ class server : public kiq::IPCHandlerInterface
     }
 
     LOG(INFO) << "Received IPC message";
-    msgs_.push_back(DeserializeIPCMessage(std::move(buffer)));
+    process_message(DeserializeIPCMessage(std::move(buffer)));
   }
   //----------------------------------
   //----------------------------------
@@ -159,49 +159,88 @@ CefSettings get_settings(int argc, char** argv)
     ret.chrome_runtime = true;
   return ret;
 }
+//-----------------------------------
+class controller
+{
+using json_t         = nlohmann::json;
+using payload_t      = std::vector<std::string>;
+using ipc_dispatch_t = std::map<uint8_t, std::function<void(ipc_msg_t)>>;
+using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>>;
+
+ public:
+  controller(KCEFClient* kcef)
+  : kcef_(kcef)
+  {}
+//-----------------------------------
+//-----------------------------------
+  enum class state
+  {
+    work,
+    shutdown
+  };
+  //-----------------------------------
+  state work()
+  {
+    try
+    {
+      if (auto msg = kiq_.wait_and_pop())
+        dispatch_.at(msg->type())(std::move(msg));
+    }
+    catch (const std::exception& e)
+    {
+      LOG(ERROR) << "Exception caught in controller: " << e.what();
+      return state::shutdown;
+    }
+
+    return state::work;
+  }
+
+ private:
+  KCEFClient*    kcef_;
+  kiq::server    kiq_;
+
+  ipc_dispatch_t dispatch_
+  {
+    {kiq::constants::IPC_KIQ_MESSAGE, [this](auto msg)
+    {
+      json_t     data = json_t::parse(static_cast<kiq::kiq_message*>(msg.get())->payload(), nullptr, false);
+      const auto args = data["args"].get<payload_t>();
+      const auto type = args.at(0);
+
+      LOG(INFO) << "Type: " << type;
+
+      kiq_handler.at(type)(args);
+    }}
+  };
+  //-----------------------------------
+  kiq_handler_t kiq_handler{
+  {
+    "sentinel:messages", [this](auto args) { kcef_->set_url(args.at(1)); }}
+  };
+};
 
 //----------------------------------
 //-------------MAIN-----------------
 //----------------------------------
 int main(int argc, char** argv)
 {
-  CefMainArgs main_args(argc, argv);
-
-  int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
-  if (exit_code >= 0)
-    return exit_code;
-
 #if defined(CEF_X11)
   XSetErrorHandler  (XErrorHandlerImpl);
   XSetIOErrorHandler(XIOErrorHandlerImpl);
 #endif
 
-  auto           kiq          = kiq::server{};
-  bool           shutdown     = false;
-  cef_app_t      app          = new SimpleApp;
+  CefMainArgs main_args(argc, argv);
+  int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
+  if (exit_code >= 0)
+    return exit_code;
+
+  cef_app_t app = new SimpleApp;
   CefInitialize(main_args, get_settings(argc, argv), app.get(), nullptr);
 
-  auto handle_ipc = [&](ipc_msg_t msg)
-  {
-    SimpleHandler* client = static_cast<SimpleHandler*>(app->GetDefaultClient().get());
+  controller controller{static_cast<KCEFClient*>(app->GetDefaultClient().get())};
 
-    if (msg)
-    {
-      nlohmann::json data = nlohmann::json::parse(static_cast<kiq::kiq_message*>(msg.get())->payload(), nullptr, false);
-      const auto     args = data["args"].get<std::vector<std::string>>();
-      const auto     type = args.at(0);
-      const auto     url  = args.at(1);
-      LOG(INFO) << "Type: " << type;
-      client->set_url(url);
-    }
-
-  };
-
-  while (!shutdown)
-  {
-    handle_ipc(kiq.wait_and_pop());
+  while (controller.work() != controller::state::shutdown)
     CefDoMessageLoopWork();
-  }
 
   CefShutdown();
 

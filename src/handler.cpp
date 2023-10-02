@@ -22,7 +22,7 @@
 
 namespace {
 
-SimpleHandler* g_instance = nullptr;
+KCEFClient* g_instance = nullptr;
 
 // Returns a data: URI with the specified contents.
 std::string GetDataURI(const std::string& data, const std::string& mime_type) {
@@ -33,22 +33,22 @@ std::string GetDataURI(const std::string& data, const std::string& mime_type) {
 
 }  // namespace
 
-SimpleHandler::SimpleHandler(bool use_views)
+KCEFClient::KCEFClient(bool use_views)
     : use_views_(use_views), is_closing_(false) {
   DCHECK(!g_instance);
   g_instance = this;
 }
 
-SimpleHandler::~SimpleHandler() {
+KCEFClient::~KCEFClient() {
   g_instance = nullptr;
 }
 
 // static
-SimpleHandler* SimpleHandler::GetInstance() {
+KCEFClient* KCEFClient::GetInstance() {
   return g_instance;
 }
 
-void SimpleHandler::OnTitleChange(CefRefPtr<CefBrowser> browser,
+void KCEFClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                   const CefString& title) {
   CEF_REQUIRE_UI_THREAD();
 
@@ -68,13 +68,13 @@ void SimpleHandler::OnTitleChange(CefRefPtr<CefBrowser> browser,
   }
 }
 
-void SimpleHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser)
+void KCEFClient::OnAfterCreated(CefRefPtr<CefBrowser> browser)
 {
   CEF_REQUIRE_UI_THREAD();
   browsers_.insert_or_assign(DEFAULT_KCEF_ID, browser);
 }
 
-bool SimpleHandler::DoClose(CefRefPtr<CefBrowser> browser) {
+bool KCEFClient::DoClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD()
   ;
 
@@ -87,7 +87,7 @@ bool SimpleHandler::DoClose(CefRefPtr<CefBrowser> browser) {
   return false;
 }
 
-void SimpleHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
+void KCEFClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   CEF_REQUIRE_UI_THREAD();
 
   // Remove from the list of existing browsers.
@@ -105,7 +105,7 @@ void SimpleHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
     CefQuitMessageLoop();
 }
 
-void SimpleHandler::OnLoadError(CefRefPtr<CefBrowser> browser,
+void KCEFClient::OnLoadError(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
                                 ErrorCode errorCode,
                                 const CefString& errorText,
@@ -132,11 +132,11 @@ void SimpleHandler::OnLoadError(CefRefPtr<CefBrowser> browser,
   frame->LoadURL(GetDataURI(ss.str(), "text/html"));
 }
 
-void SimpleHandler::CloseAllBrowsers(bool force_close)
+void KCEFClient::CloseAllBrowsers(bool force_close)
 {
   if (!CefCurrentlyOn(TID_UI)) {
     // Execute on the UI thread.
-    CefPostTask(TID_UI, base::BindOnce(&SimpleHandler::CloseAllBrowsers, this,
+    CefPostTask(TID_UI, base::BindOnce(&KCEFClient::CloseAllBrowsers, this,
                                        force_close));
     return;
   }
@@ -149,7 +149,7 @@ void SimpleHandler::CloseAllBrowsers(bool force_close)
 }
 
 // static
-bool SimpleHandler::IsChromeRuntimeEnabled() {
+bool KCEFClient::IsChromeRuntimeEnabled() {
   static int value = -1;
   if (value == -1) {
     CefRefPtr<CefCommandLine> command_line =
@@ -160,7 +160,7 @@ bool SimpleHandler::IsChromeRuntimeEnabled() {
 }
 
 
-void SimpleHandler::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
+void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
                                         const CefString& title) {
   std::string titleStr(title);
 
@@ -197,7 +197,7 @@ void SimpleHandler::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
 #endif  // defined(CEF_X11)
 }
 
-void SimpleHandler::set_url(const std::string& url)
+void KCEFClient::set_url(const std::string& url)
 {
   LOG(INFO) << "Setting URL to " << url;
   browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->LoadURL(url);
