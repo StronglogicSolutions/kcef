@@ -87,7 +87,7 @@ void SimpleApp::OnContextInitialized()
   const bool use_views = command_line->HasSwitch("use-views");
   LOG(INFO) << "Using views: " << use_views;
 
-  CefRefPtr<SimpleHandler> handler(new SimpleHandler(use_views));
+  CefRefPtr<KCEFClient> handler(new KCEFClient(use_views));
   CefBrowserSettings       browser_settings;
 
   std::string url = command_line->GetSwitchValue("url");
@@ -117,5 +117,5 @@ void SimpleApp::OnContextInitialized()
 
 CefRefPtr<CefClient> SimpleApp::GetDefaultClient()
 { // Called when a new browser window is created via the Chrome runtime UI.
-  return SimpleHandler::GetInstance();
+  return KCEFClient::GetInstance();
 }
