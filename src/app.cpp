@@ -85,7 +85,6 @@ void SimpleApp::OnContextInitialized()
       CefCommandLine::GetGlobalCommandLine();
 
   const bool use_views = command_line->HasSwitch("use-views");
-  LOG(INFO) << "Using views: " << use_views;
 
   CefRefPtr<KCEFClient> handler(new KCEFClient(use_views));
   CefBrowserSettings       browser_settings;
