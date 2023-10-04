@@ -34,7 +34,6 @@ int XIOErrorHandlerImpl(Display* display)
 
 using cef_app_t      = CefRefPtr<SimpleApp>;
 using cef_cmd_line_t = CefRefPtr<CefCommandLine>;
-using ipc_msg_t      = kiq::ipc_message::u_ipc_msg_ptr;
 
 //----------------------------------
 CefSettings get_settings(int argc, char** argv)
