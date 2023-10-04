@@ -29,8 +29,6 @@ class server : public kiq::IPCHandlerInterface
   zmq::context_t        context_;
   zmq::socket_t         rx_;
   zmq::socket_t         tx_;
-  std::future<void>     future_;
-  bool                  active_{true};
   messages_t            msgs_;
 };
 } // ns kiq
