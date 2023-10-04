@@ -8,7 +8,7 @@ using kiq_msg_t = kiq::kiq_message;
 controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
   dispatch_({
-    {kiq::constants::IPC_KIQ_MESSAGE, [this](auto msg)
+    {kiq::constants::IPC_KIQ_MESSAGE, [this](auto msg) // IPC MSG HANDLER
     {
       json_t     data = json_t::parse(static_cast<kiq_msg_t*>(msg.get())->payload(), nullptr, false);
       const auto args = data["args"].get<payload_t>();
@@ -17,9 +17,10 @@ controller::controller(kcef_interface* kcef)
       LOG(INFO) << "Type: " << type;
 
       kiq_handler.at(type)(args);
-    }}}),
+    }},
+    {kiq::constants::IPC_OK_TYPE, [this](auto msg) { LOG(INFO) << "Received OK: " << msg->to_string(); }}}), // REPLY OK
   kiq_handler({
-    { "sentinel:messages", [this](auto args) { kcef_->set_url(args.at(1)); }},
+    { "sentinel:messages", [this](auto args) { kcef_->set_url(args.at(1)); }}, // KIQ REQUESTS
     { "sentinel:query",    [this](auto args) { kcef_->query  (args.at(1)); }}
   })
 {

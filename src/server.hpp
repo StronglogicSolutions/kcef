@@ -11,18 +11,17 @@ class server : public kiq::IPCHandlerInterface
 {
  public:
   server();
-  void process_message(kiq::ipc_message::u_ipc_msg_ptr msg) final;
+  ~server() final = default;
+  void      process_message(kiq::ipc_message::u_ipc_msg_ptr msg) final;
   ipc_msg_t wait_and_pop();
-  ~server();
-  bool is_active() const;
 
  protected:
   zmq::socket_t& socket() final;
 
  private:
-  void run();
-
-  void recv();
+  void    run ();
+  uint8_t poll();
+  void    recv(bool tx = false);
   //----------------------------------
   //----------------------------------
   using messages_t = std::deque<ipc_msg_t>;

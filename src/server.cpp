@@ -23,8 +23,6 @@ server::server()
 
   rx_.bind   (RX_ADDR);
   tx_.connect(TX_ADDR);
-
-  future_ = std::async(std::launch::async, [this] { run(); });
 }
 //----------------------------------
 void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
@@ -34,28 +32,40 @@ void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
 //----------------------------------
 ipc_msg_t server::wait_and_pop()
 {
-  std::this_thread::sleep_for(std::chrono::milliseconds(30));
+  static bool from_tx = true;
+  uint8_t     mask    = poll();
+
+  if (mask & 0x01 << 1)
+    recv();
+  if (mask & 0x01 << 0)
+    recv(from_tx);
 
   if (msgs_.empty())
     return nullptr;
+
   ipc_msg_t msg = std::move(msgs_.front());
   msgs_.pop_front();
 
   LOG(INFO) << "Popping message: " << msg->to_string();
   return msg;
 }
+//----------------------------------
+uint8_t
+server::poll()
+{
+  static const auto timeout = std::chrono::milliseconds(30);
+  uint8_t           poll_mask = {0x00};
+  zmq::pollitem_t   items[]   = { { tx_, 0, ZMQ_POLLIN, 0},
+                                  { rx_, 1, ZMQ_POLLIN, 0} };
 
-//----------------------------------
-server::~server()
-{
-  active_ = false;
-  if (future_.valid())
-    future_.wait();
-}
-//----------------------------------
-bool server::is_active() const
-{
-  return active_;
+  zmq::poll(&items[0], 2, timeout);
+
+  if (items[0].revents & ZMQ_POLLIN)
+    poll_mask |= (0x01 << 0);
+  if (items[1].revents & ZMQ_POLLIN)
+    poll_mask |= (0x01 << 1);
+  return poll_mask;
+
 }
 //----------------------------------
 zmq::socket_t& server::socket()
@@ -63,18 +73,13 @@ zmq::socket_t& server::socket()
   return tx_;
 }
 //----------------------------------
-void server::run()
-{
-  while (active_)
-    recv();
-}
-//----------------------------------
-void server::recv()
+void server::recv(bool tx)
 {
   using buffers_t = std::vector<ipc_message::byte_buffer>;
 
-  zmq::message_t identity;
-  if (!rx_.recv(identity) || identity.empty())
+  zmq::message_t  identity;
+  zmq::socket_t&  sock = (tx) ? tx_ : rx_;
+  if (!sock.recv(identity) || identity.empty())
   {
     LOG(ERROR) << "Failed to receive IPC: No identity";
     return;
@@ -84,10 +89,10 @@ void server::recv()
   zmq::message_t msg;
   int            more_flag{1};
 
-  while (more_flag && rx_.recv(msg))
+  while (more_flag && sock.recv(msg))
   {
     buffer.push_back({static_cast<char*>(msg.data()), static_cast<char*>(msg.data()) + msg.size()});
-    more_flag = rx_.get(zmq::sockopt::rcvmore);
+    more_flag = sock.get(zmq::sockopt::rcvmore);
   }
 
   LOG(INFO) << "Received IPC message";
