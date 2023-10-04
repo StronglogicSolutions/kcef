@@ -23,6 +23,10 @@ set(SOURCES
   src/main.cpp
   src/app.cpp
   src/app.hpp
+  src/server.cpp
+  src/server.hpp
+  src/controller.cpp
+  src/controller.hpp
   src/handler.cpp
   src/handler.hpp)
 

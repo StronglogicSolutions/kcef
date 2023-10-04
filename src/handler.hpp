@@ -1,18 +1,24 @@
 #pragma once
 
 #include "include/cef_client.h"
-
+#include "interface.hpp"
 #include <list>
+
 static const int32_t DEFAULT_KCEF_ID = 99;
 class KCEFClient : public CefClient,
                    public CefDisplayHandler,
                    public CefLifeSpanHandler,
-                   public CefLoadHandler {
+                   public CefLoadHandler,
+                   public CefStringVisitor,
+                   public kcef_interface
+{
  public:
   explicit KCEFClient(bool use_views);
-  ~KCEFClient();
+  ~KCEFClient() final;
 
-  void set_url(const std::string& url);
+  void set_url(const std::string&) const final;
+  void query  (const std::string&) final;
+  void init   (src_cb_t);
 
   // Provide access to the single global instance of this object.
   static KCEFClient* GetInstance();
@@ -55,14 +61,16 @@ class KCEFClient : public CefClient,
   void PlatformTitleChange(CefRefPtr<CefBrowser> browser,
                            const CefString& title);
 
-  // True if the application is using the Views framework.
+  void Visit(const CefString& s) final;
+
   const bool use_views_;
 
   // List of existing browser windows. Only accessed on the CEF UI thread.
-  typedef std::map<int32_t, CefRefPtr<CefBrowser>> browsers_t;
-  browsers_t browsers_;
-
-  bool is_closing_;
+  using browsers_t = std::map<int32_t, CefRefPtr<CefBrowser>>;
+  browsers_t  browsers_;
+  bool        is_closing_;
+  std::string current_source_;
+  src_cb_t    cb_;
 
   // Include the default reference counting implementation.
   IMPLEMENT_REFCOUNTING(KCEFClient);

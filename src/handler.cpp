@@ -1,11 +1,6 @@
-// Copyright (c) 2013 The Chromium Embedded Framework Authors. All rights
-// reserved. Use of this source code is governed by a BSD-style license that
-// can be found in the LICENSE file.
-
 #include "handler.hpp"
 
 #include <sstream>
-#include <string>
 
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
@@ -34,13 +29,20 @@ std::string GetDataURI(const std::string& data, const std::string& mime_type) {
 }  // namespace
 
 KCEFClient::KCEFClient(bool use_views)
-    : use_views_(use_views), is_closing_(false) {
+: use_views_(use_views),
+  is_closing_(false)
+{
   DCHECK(!g_instance);
   g_instance = this;
 }
 
 KCEFClient::~KCEFClient() {
   g_instance = nullptr;
+}
+
+void KCEFClient::init(src_cb_t cb)
+{
+  cb_ = cb;
 }
 
 // static
@@ -197,8 +199,19 @@ void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
 #endif  // defined(CEF_X11)
 }
 
-void KCEFClient::set_url(const std::string& url)
+void KCEFClient::set_url(const std::string& url) const
 {
   LOG(INFO) << "Setting URL to " << url;
-  browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->LoadURL(url);
+  browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->LoadURL(url);
+}
+
+void KCEFClient::query(const std::string& q)
+{
+  browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->GetSource(this);
+}
+
+void KCEFClient::Visit(const CefString& s)
+{
+  current_source_ = s.ToString();
+  cb_(current_source_);
 }
