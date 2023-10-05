@@ -44,6 +44,9 @@ CefSettings get_settings(int argc, char** argv)
 
   if (command_line->HasSwitch("enable-chrome-runtime"))
     ret.chrome_runtime = true;
+
+  CefString(&ret.cache_path).FromString("/tmp/KCEF");
+  ret.persist_session_cookies = true;
   return ret;
 }
 
