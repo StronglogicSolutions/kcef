@@ -1,0 +1,10 @@
+{
+  "name": "KCEF_Analyzer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@nlpjs/basic": "^4.27.0",
+    "jsdom": "^22.1.0"
+  }
+}
