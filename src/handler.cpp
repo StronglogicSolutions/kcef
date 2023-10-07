@@ -1,7 +1,5 @@
 #include "handler.hpp"
 
-#include <sstream>
-
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
 #include "include/cef_parser.h"
@@ -9,6 +7,8 @@
 #include "include/views/cef_window.h"
 #include "include/wrapper/cef_closure_task.h"
 #include "include/wrapper/cef_helpers.h"
+
+#include <kutils.hpp>
 
 #if defined(CEF_X11)
 #include <X11/Xatom.h>
@@ -208,6 +208,11 @@ void KCEFClient::set_url(const std::string& url) const
 void KCEFClient::query(const std::string& q)
 {
   browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->GetSource(this);
+}
+
+std::string KCEFClient::get_url() const
+{
+  return browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->GetURL().ToString();
 }
 
 void KCEFClient::Visit(const CefString& s)

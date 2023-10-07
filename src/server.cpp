@@ -20,7 +20,6 @@ server::server()
   tx_.set(zmq::sockopt::tcp_keepalive_idle,  300);
   rx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
   tx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-
   rx_.bind   (RX_ADDR);
   tx_.connect(TX_ADDR);
 }

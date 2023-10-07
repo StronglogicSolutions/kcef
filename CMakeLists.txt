@@ -11,6 +11,8 @@ include_directories(
   src
   ${CEF_BUILD_DIR}
   "third_party/kproto/include"
+  "third_party/kutils/include"
+  "third_party/process_executor"
   "third_party/json/include")
 
 link_directories(
