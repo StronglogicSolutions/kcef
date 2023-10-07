@@ -22,19 +22,25 @@ controller::controller(kcef_interface* kcef)
     }},
     {kiq::constants::IPC_OK_TYPE, [this](auto msg) { LOG(INFO) << "Received OK: " << msg->to_string(); }}}), // REPLY OK
   kiq_handler({
-    { "sentinel:messages", [this](auto args) { kcef_->set_url(args.at(1)); }}, // KIQ REQUESTS
-    { "sentinel:query",    [this](auto args) { kcef_->query  (args.at(1));
-                                               kutils::SaveToFile(args.at(1), kutils::get_unix_tstring() + ".html");
-                                               const auto result = kiq::qx({"./app.sh", args.at(1), kcef_->get_url()});
-                                               if (result.error)
-                                                 LOG(ERROR) << "NodeJS app failed: " << result.output;
-                                               else
-                                                LOG(INFO) << "NodeJS app stdout:\n", result.output; }}
+    { "sentinel:messages", [this](auto args) { kcef_->set_url(args.at(1)); }},   // KIQ REQUESTS
+    { "sentinel:query",    [this](auto args) { kcef_->query(args.at(1));   }}
   })
 {
   kcef_->init([this](const std::string& s)
   {
-    LOG(INFO) << "Sending this source:\n" << s;
+    const auto url      = kcef_->get_url();
+    const auto filename = kutils::get_unix_tstring() + ".html";
+
+    kutils::SaveToFile(s, filename);
+
+    LOG(INFO) << "Saved " << url << " from " << url;
+
+    const auto result = kiq::qx({"./app.sh", filename, url});
+    if (result.error)
+      LOG(ERROR) << "NodeJS app failed: " << result.output;
+    else
+      LOG(INFO) << "NodeJS app stdout:\n" << result.output;
+
     kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", s, "source"));
   });
 }
