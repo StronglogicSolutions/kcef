@@ -18,16 +18,48 @@ function get_name()
   return full.substring(0, full.lastIndexOf('.'))
 }
 
+async function create_analysis(items)
+{
+  const data = []
+
+  for (const item of items)
+    data.push({ nlp: await nlp.process('en', item.textContent) })
+
+  function find_candidates()
+  {
+    return data
+  }
+
+  function identify_target(item)
+  {
+    return "noun"
+  }
+
+  function compute_resolutions()
+  {
+    for (let i = 0; data.length; i++)
+    {
+      data[i].target = identify_target(data[i])
+      data[i].result = "computed"
+    }
+  }
+
+  return {
+    get: function()
+    {
+      return data
+    }
+  }
+}
+
 const handlers = {
   "twitter": async (doc) =>
   {
     const articles = doc.querySelectorAll("article")
-    for (const article of articles)
-    {
-      console.log(article)
-      const result = await nlp.process('en', article.textContent)
-      console.log("Received result!", result)
-    }
+    const analysis = await create_analysis(articles)
+    const result   = analysis.get()
+    for (const detail of result)
+      console.log(detail)
   }
 }
 
@@ -42,7 +74,7 @@ async function start()
   }
   catch ({ message })
   {
-    console.error("Exception caught:", message())
+    console.error("Exception caught:", message)
   }
 }
 
