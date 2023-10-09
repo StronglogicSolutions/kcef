@@ -454,6 +454,11 @@ ms@2.1.2:
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.2.tgz#d09d1f357b443f493382a8eb3ccd183872ae6009"
   integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
 
+nlpjs@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/nlpjs/-/nlpjs-0.0.2.tgz#a0c08d40f028db897d25ff2795b3a7d81dfc8335"
+  integrity sha512-y/+WGlFAtwhas8v4zkI1jM70jvt4fszrknN688nXsC+rzn5wgl9frOl9YjsLFT+7So1jvaSspsZ1tncTrluUqw==
+
 nwsapi@^2.2.4:
   version "2.2.7"
   resolved "https://registry.yarnpkg.com/nwsapi/-/nwsapi-2.2.7.tgz#738e0707d3128cb750dddcfe90e4610482df0f30"
