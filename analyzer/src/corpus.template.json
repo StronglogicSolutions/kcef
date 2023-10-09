@@ -1,0 +1,24 @@
+{
+  "name": "example",
+  "locale": "en-US",
+  "data": [
+  {
+    "intent": "intent.name",
+    "utterances": [
+      "utterance"
+    ],
+    "answers": [
+      "response"
+    ]
+  }],
+  "entities": {
+    "group": {
+      "options": {
+        "entity1": [
+          "variant",
+          "other variant"
+        ]
+      }
+    }
+  }
+}
