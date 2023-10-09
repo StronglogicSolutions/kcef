@@ -2,7 +2,7 @@ const path = require('path')
 const fs = require('fs')
 const { JSDOM } = require('jsdom')
 const { dockStart } = require('@nlpjs/basic');
-
+const dockstart = dockStart
 const file_path = process.argv[2]
 const url       = process.argv[3]
 let nlp
@@ -21,6 +21,15 @@ function get_name()
 //--------------------------------------------
 async function create_analysis(items)
 {
+  const words  = Object.keys(JSON.parse(nlp.export(false)).ner.rules.en)
+  const has_watchword = entities =>
+  {
+    for (const item of entities)
+      if (words.find(word => { return word === item.entity }))
+        return true
+    return false
+  }
+
   let   select = []
   const data   = []
   for (const text of items)
@@ -30,7 +39,10 @@ async function create_analysis(items)
   {
     const result = []
     for (const item of data)
-      result.push({ ...item, target: undefined })
+    {
+      if (has_watchword(item.nlp.entities))
+        result.push({ ...item, target: undefined })
+    }
     return result
   }
 
@@ -66,7 +78,7 @@ const handlers = {
 //--------------------------------------------
 async function start()
 {
-  const dock = await dockStart({
+  nlp = (await dockstart({
     settings: {
       nlp: {
         forceNER: true,
@@ -75,8 +87,7 @@ async function start()
       }
     },
     use: ['Basic', 'LangEn'],
-  })
-  nlp = dock.get('nlp');
+  })).get('nlp')
 
   await nlp.train()
 
