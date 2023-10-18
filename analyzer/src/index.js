@@ -3,6 +3,9 @@ const fs = require('fs')
 const { JSDOM } = require('jsdom')
 const { dockStart } = require('@nlpjs/basic')
 const { spawn } = require('node:child_process')
+const { DomainManager, NluNeural } = require('@nlpjs/nlu')
+const { containerBootstrap } = require('@nlpjs/core')
+const { LangEn } = require('@nlpjs/lang-en')
 const dockstart = dockStart
 const file_path = process.argv[2]
 const url       = process.argv[3]
@@ -34,6 +37,7 @@ async function get_context(text)
   })
 
   await p
+
   return JSON.parse(ret.toString())
 }
 //--------------------------------------------
@@ -59,30 +63,36 @@ async function create_analysis(items)
   for (const text of items)
     data.push({ nlp: await nlp.process('en', text) })
 
-  function find_candidates()
+  async function find_candidates()
   {
     const result = []
     for (const item of data)
-    {
       if (has_watchword(item.nlp.entities))
-        result.push({ ...item, target: undefined, context: undefined })
-    }
+        result.push({ ...item })
     return result
   }
 
   function identify_target(item)
   {
-    return "noun"
+    const rank = { Person: 4, Organization: 3, Location: 2, Unknown: 1 }
+    let ret
+    for (const entity of item.context.entities)
+      if (!entity.type in rank)
+        console.warn(`${entity.type} is an unfamiliar entity`)
+      else
+      if (!ret || rank[entity.type] > rank[ret.type])
+        ret = entity
+    return ret
   }
 
   async function compute_resolutions()
   {
-    select = find_candidates()
+    select = await find_candidates()
     for (let i = 0; i < select.length; i++)
     {
+      select[i].context = await get_context(select[i].nlp.utterance)
       select[i].target  = identify_target(select[i])
       select[i].result  = "computed"
-      select[i].context = await get_context(select[i].nlp.utterance)
     }
   }
 
@@ -95,7 +105,6 @@ const handlers = {
   "twitter": async (doc) =>
   {
     const articles = [...doc.querySelectorAll('[data-testid="tweetText"]')].map(e => { return e.textContent })
-    console.log(articles)
     const analysis = await create_analysis(articles)
     const result   = analysis.get()
     console.log(JSON.stringify(result))
@@ -104,7 +113,7 @@ const handlers = {
 //--------------------------------------------
 async function start()
 {
-  let temp = console.log // silence bootstrap
+  let temp = console.log   // silence bootstrap
   console.log = ()=>{}
   nlp = (await dockstart({
     settings: {
@@ -117,14 +126,18 @@ async function start()
     use: ['Basic', 'LangEn'],
   })).get('nlp')
 
+  nlp.addDocument('en', "Just letting you know",      "implied.wisdom")
+  nlp.addDocument('en', "Just letting everyone know", "implied.wisdom")
+  nlp.addDocument('en', "Just to let you know",       "implied.wisdom")
+
   await nlp.train()
 
-  console.log = temp  // restore logging
+  console.log = temp       // restore logging
 
   try
   {
     const data = fs.readFileSync(file_path).toString()
-    const doc = new JSDOM(data).window.document
+    const doc  = new JSDOM(data).window.document
     const name = get_name()
     handlers[name](doc)
   }
