@@ -3,6 +3,9 @@ const fs = require('fs')
 const { JSDOM } = require('jsdom')
 const { dockStart } = require('@nlpjs/basic')
 const { spawn } = require('node:child_process')
+const { DomainManager, NluNeural } = require('@nlpjs/nlu')
+const { containerBootstrap } = require('@nlpjs/core')
+const { LangEn } = require('@nlpjs/lang-en')
 const dockstart = dockStart
 const file_path = process.argv[2]
 const url       = process.argv[3]
@@ -14,12 +17,14 @@ if (!file_path.length)
   process.exit(1)
 }
 
-async function get_context(text)
+async function analyze(text, command)
 {
   let r
   let p = new Promise(resolve => r = resolve)
   let ret
-  const process = spawn(path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app"), [`--description="${text}"`, "context"])
+
+  const process  = spawn(path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app"), [`--description="${text}"`, command])
+
   process.stdout.on('data', (data) =>
   {
     ret = data
@@ -34,6 +39,7 @@ async function get_context(text)
   })
 
   await p
+
   return JSON.parse(ret.toString())
 }
 //--------------------------------------------
@@ -41,6 +47,13 @@ function get_name()
 {
   const full = url.substring(url.indexOf("://") + 3)
   return full.substring(0, full.lastIndexOf('.'))
+}
+//--------------------------------------------
+async function train_nlp(nlp)
+{
+  for (const text of ["Just letting you know", "Just letting everyone know", "Just to let you know"])
+    nlp.addDocument('en', text, "implied.wisdom")
+  await nlp.train()
 }
 //--------------------------------------------
 async function create_analysis(items)
@@ -59,30 +72,38 @@ async function create_analysis(items)
   for (const text of items)
     data.push({ nlp: await nlp.process('en', text) })
 
-  function find_candidates()
+  async function find_candidates()
   {
     const result = []
     for (const item of data)
-    {
       if (has_watchword(item.nlp.entities))
-        result.push({ ...item, target: undefined, context: undefined })
-    }
+        result.push({ ...item })
     return result
   }
 
   function identify_target(item)
   {
-    return "noun"
+    const rank = { Person: 4, Organization: 3, Location: 2, Unknown: 1 }
+    let ret
+    for (const entity of item.context.entities)
+      if (!entity.type in rank)
+        console.warn(`${entity.type} is an unfamiliar entity`)
+      else
+      if (!ret || rank[entity.type] > rank[ret.type])
+        ret = entity
+    return ret
   }
 
   async function compute_resolutions()
   {
-    select = find_candidates()
+    select = await find_candidates()
     for (let i = 0; i < select.length; i++)
     {
-      select[i].target  = identify_target(select[i])
-      select[i].result  = "computed"
-      select[i].context = await get_context(select[i].nlp.utterance)
+      select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
+      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
+      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
+      select[i].target    = identify_target(select[i])
+      select[i].result    = "computed"
     }
   }
 
@@ -95,7 +116,6 @@ const handlers = {
   "twitter": async (doc) =>
   {
     const articles = [...doc.querySelectorAll('[data-testid="tweetText"]')].map(e => { return e.textContent })
-    console.log(articles)
     const analysis = await create_analysis(articles)
     const result   = analysis.get()
     console.log(JSON.stringify(result))
@@ -104,7 +124,7 @@ const handlers = {
 //--------------------------------------------
 async function start()
 {
-  let temp = console.log // silence bootstrap
+  let temp = console.log   // silence bootstrap
   console.log = ()=>{}
   nlp = (await dockstart({
     settings: {
@@ -117,14 +137,14 @@ async function start()
     use: ['Basic', 'LangEn'],
   })).get('nlp')
 
-  await nlp.train()
+  await train_nlp(nlp)
 
-  console.log = temp  // restore logging
+  console.log = temp       // restore logging
 
   try
   {
     const data = fs.readFileSync(file_path).toString()
-    const doc = new JSDOM(data).window.document
+    const doc  = new JSDOM(data).window.document
     const name = get_name()
     handlers[name](doc)
   }
