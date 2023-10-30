@@ -17,12 +17,14 @@ if (!file_path.length)
   process.exit(1)
 }
 
-async function get_context(text)
+async function analyze(text, command)
 {
   let r
   let p = new Promise(resolve => r = resolve)
   let ret
-  const process = spawn(path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app"), [`--description="${text}"`, "context"])
+
+  const process  = spawn(path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app"), [`--description="${text}"`, command])
+
   process.stdout.on('data', (data) =>
   {
     ret = data
@@ -45,6 +47,13 @@ function get_name()
 {
   const full = url.substring(url.indexOf("://") + 3)
   return full.substring(0, full.lastIndexOf('.'))
+}
+//--------------------------------------------
+async function train_nlp(nlp)
+{
+  for (const text of ["Just letting you know", "Just letting everyone know", "Just to let you know"])
+    nlp.addDocument('en', text, "implied.wisdom")
+  await nlp.train()
 }
 //--------------------------------------------
 async function create_analysis(items)
@@ -90,9 +99,11 @@ async function create_analysis(items)
     select = await find_candidates()
     for (let i = 0; i < select.length; i++)
     {
-      select[i].context = await get_context(select[i].nlp.utterance)
-      select[i].target  = identify_target(select[i])
-      select[i].result  = "computed"
+      select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
+      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
+      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
+      select[i].target    = identify_target(select[i])
+      select[i].result    = "computed"
     }
   }
 
@@ -126,11 +137,7 @@ async function start()
     use: ['Basic', 'LangEn'],
   })).get('nlp')
 
-  nlp.addDocument('en', "Just letting you know",      "implied.wisdom")
-  nlp.addDocument('en', "Just letting everyone know", "implied.wisdom")
-  nlp.addDocument('en', "Just to let you know",       "implied.wisdom")
-
-  await nlp.train()
+  await train_nlp(nlp)
 
   console.log = temp       // restore logging
 
