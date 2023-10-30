@@ -49,6 +49,24 @@ function get_name()
   return full.substring(0, full.lastIndexOf('.'))
 }
 //--------------------------------------------
+function get_input(doc)
+{
+  const input = []
+  const list  = doc.querySelectorAll('[data-testid="tweetText"]')
+  for (const item of list)
+  {
+    const parent = item.parentNode.previousElementSibling
+    if (!parent)
+      continue
+
+    const user = parent.querySelector('[data-testid="User-Name"]')
+    if (user)
+      input.push({ text: item.textContent, username: user.firstElementChild.textContent.trim() })
+  }
+
+  return input
+}
+//--------------------------------------------
 async function train_nlp(nlp)
 {
   for (const text of ["Just letting you know", "Just letting everyone know", "Just to let you know"])
@@ -69,8 +87,8 @@ async function create_analysis(items)
 
   let   select = []
   const data   = []
-  for (const text of items)
-    data.push({ nlp: await nlp.process('en', text) })
+  for (const item of items)
+    data.push({ nlp: await nlp.process('en', item.text), username: item.username })
 
   async function find_candidates()
   {
@@ -115,8 +133,7 @@ async function create_analysis(items)
 const handlers = {
   "twitter": async (doc) =>
   {
-    const articles = [...doc.querySelectorAll('[data-testid="tweetText"]')].map(e => { return e.textContent })
-    const analysis = await create_analysis(articles)
+    const analysis = await create_analysis(get_input(doc))
     const result   = analysis.get()
     console.log(JSON.stringify(result))
   }
