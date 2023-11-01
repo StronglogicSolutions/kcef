@@ -1,14 +1,16 @@
-const path = require('path')
-const fs = require('fs')
-const { JSDOM } = require('jsdom')
-const { dockStart } = require('@nlpjs/basic')
-const { spawn } = require('node:child_process')
+const path                         = require('path')
+const fs                           = require('fs')
+const { JSDOM                    } = require('jsdom')
+const { dockStart                } = require('@nlpjs/basic')
+const { spawn                    } = require('node:child_process')
 const { DomainManager, NluNeural } = require('@nlpjs/nlu')
-const { containerBootstrap } = require('@nlpjs/core')
-const { LangEn } = require('@nlpjs/lang-en')
-const dockstart = dockStart
-const file_path = process.argv[2]
-const url       = process.argv[3]
+const { containerBootstrap       } = require('@nlpjs/core')
+const { LangEn                   } = require('@nlpjs/lang-en')
+const dockstart   = dockStart
+const file_path   = process.argv[2]
+const url         = process.argv[3]
+const text_target = '[data-testid="tweetText"]'
+const user_target = '[data-testid="User-Name"]'
 let nlp
 //--------------------------------------------
 if (!file_path.length)
@@ -51,17 +53,26 @@ function get_name()
 //--------------------------------------------
 function get_input(doc)
 {
+  const parse_user = user =>
+  {
+    return user.firstElementChild.nextElementSibling.firstElementChild.firstElementChild
+      .textContent.trim()
+      .replace(/\s+/g, ' ')
+      .replace(/\n+/g,  '')
+      .replace('@',     '')
+  }
+
   const input = []
-  const list  = doc.querySelectorAll('[data-testid="tweetText"]')
+  const list  = doc.querySelectorAll(text_target)
   for (const item of list)
   {
     const parent = item.parentNode.previousElementSibling
     if (!parent)
       continue
 
-    const user = parent.querySelector('[data-testid="User-Name"]')
+    const user = parent.querySelector(user_target)
     if (user)
-      input.push({ text: item.textContent, username: user.firstElementChild.textContent.trim() })
+      input.push({ text: item.textContent, username: parse_user(user) })
   }
 
   return input
@@ -127,25 +138,28 @@ async function create_analysis(items)
 
   await compute_resolutions()
 
-  return { get: () => { return select } }
+  return select
 }
 //--------------------------------------------
-const handlers = {
+const handlers =
+{
   "twitter": async (doc) =>
   {
-    const analysis = await create_analysis(get_input(doc))
-    const result   = analysis.get()
-    console.log(JSON.stringify(result))
+    console.log(JSON.stringify(await create_analysis(get_input(doc))))
   }
 }
 //--------------------------------------------
-async function start()
+//--------------------------------------------
+//--------------------------------------------
+;//////////////////MAIN///////////////////////
+(async () =>
 {
   let temp = console.log   // silence bootstrap
   console.log = ()=>{}
   nlp = (await dockstart({
     settings: {
-      nlp: {
+      nlp:
+      {
         forceNER: true,
         languages: ['en'],
         corpora: [ path.join(__dirname, "corpus.json") ]
@@ -171,6 +185,4 @@ async function start()
   }
 
   nlp.save(path.join(__dirname, "kcef_models.nlp"))
-}
-
-start()
+})()
