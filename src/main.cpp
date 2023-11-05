@@ -10,8 +10,8 @@
 
 
 #if defined(CEF_X11)
-namespace {
-
+namespace
+{
 int XErrorHandlerImpl(Display* display, XErrorEvent* event)
 {
   LOG(WARNING) << "X error received: "
@@ -29,7 +29,7 @@ int XIOErrorHandlerImpl(Display* display)
   return 0;
 }
 
-}  // namespace
+} // ns
 #endif  // defined(CEF_X11)
 
 using cef_app_t      = CefRefPtr<SimpleApp>;
@@ -47,6 +47,8 @@ CefSettings get_settings(int argc, char** argv)
 
   CefString(&ret.cache_path).FromString("/tmp/KCEF");
   ret.persist_session_cookies = true;
+
+  ret.remote_debugging_port = 9670;
   return ret;
 }
 

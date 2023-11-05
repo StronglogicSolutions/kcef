@@ -1,5 +1,6 @@
 #pragma once
 
+#include <kutils.hpp>
 #include "server.hpp"
 #include "interface.hpp"
 
@@ -22,10 +23,15 @@ using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>
   state work();
 
  private:
-  kcef_interface* kcef_;
-  kiq::server     kiq_;
+  using browse_queue_t = std::deque<std::string>;
 
-  ipc_dispatch_t dispatch_;
-
-  kiq_handler_t kiq_handler;
+  void                  handle_queue();
+  void                  enqueue(const std::string& url);
+  kcef_interface*       kcef_;
+  kiq::server           kiq_;
+  ipc_dispatch_t        dispatch_;
+  kiq_handler_t         kiq_handler;
+  browse_queue_t        queue_;
+  kutils::bucket<1, 5>  bucket_; // REQ/N sec
+  bool                  app_waiting_{false};
 };

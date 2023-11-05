@@ -1,6 +1,5 @@
 #include "controller.hpp"
 #include <nlohmann/json.hpp>
-#include <kutils.hpp>
 #include "include/base/cef_logging.h"
 #include <process.hpp>
 
@@ -20,28 +19,61 @@ controller::controller(kcef_interface* kcef)
 
       kiq_handler.at(type)(args);
     }},
+    {kiq::constants::IPC_PLATFORM_INFO, [this](auto msg) // IPC INFO
+    {
+      const auto type = static_cast<kiq::platform_info*>(msg.get())->type();
+      const auto data = static_cast<kiq::platform_info*>(msg.get())->info();
+
+      LOG(INFO) << "Info command: " << type;
+      LOG(INFO) << "Info payload: " << data;
+      try
+      {
+        kiq_handler.at(type)({ data });
+      }
+      catch(const std::exception& e)
+      {
+        LOG(ERROR) << "Failed to handle command. Exception: " << e.what();
+      }
+    }},
     {kiq::constants::IPC_OK_TYPE, [this](auto msg) { LOG(INFO) << "Received OK: " << msg->to_string(); }}}), // REPLY OK
   kiq_handler({
-    { "sentinel:messages", [this](auto args) { kcef_->set_url(args.at(1)); }},   // KIQ REQUESTS
-    { "sentinel:query",    [this](auto args) { kcef_->query(args.at(1));   }}
+    { "sentinel:messages", [this](auto args) { enqueue(args.at(1));        }},   // KIQ REQUESTS
+    { "sentinel:query",    [this](auto args) { kcef_->query  (args.at(1)); }},   // FIND SOMETHING TO ANALYZE
+    { "sentinel:loadurl",  [this](auto args)                                     // LOAD URL
+    {
+      LOG(INFO) << "handling loadurl";
+      app_waiting_ = true;
+      kiq_.set_reply_pending();
+      enqueue(args.at(0));
+    }}
   })
 {
-  kcef_->init([this](const std::string& s)
+  kcef_->init([this](const std::string& s)                                       // query callback
   {
+    LOG(INFO) << "kcef callback";
     const auto url      = kcef_->get_url();
     const auto filename = kutils::get_unix_tstring() + ".html";
+
+    if (app_waiting_) // TODO: this is messy
+    {
+      LOG(INFO) << "app was waiting";
+      app_waiting_ = false;
+      kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("sentinel", "new_url", s));
+      return;
+    }
 
     kutils::SaveToFile(s, filename);
 
     LOG(INFO) << "Saved " << url << " from " << url;
 
-    const auto result = kiq::qx({"./app.sh", filename, url});
+    const auto result = kiq::qx({"./app.sh", filename, url});                    // ANALYZE
     if (result.error)
       LOG(ERROR) << "NodeJS app failed: " << result.output;
     else
-      LOG(INFO) << "NodeJS app stdout:\n" << result.output;
+      LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
 
-    kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", s, "source"));
+    kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", s,             "source"));
+    kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", result.output, "agitation analysis"));
   });
 }
 //-----------------------------------
@@ -51,6 +83,8 @@ controller::state controller::work()
   {
     if (auto msg = kiq_.wait_and_pop())
       dispatch_.at(msg->type())(std::move(msg));
+
+    handle_queue();
   }
   catch (const std::exception& e)
   {
@@ -59,4 +93,20 @@ controller::state controller::work()
   }
 
   return state::work;
+}
+//----------------------------------
+void controller::enqueue(const std::string& url)
+{
+  queue_.push_back(url);
+}
+//----------------------------------
+void controller::handle_queue()
+{
+  if (queue_.empty() || !bucket_.request(1))
+    return;
+
+  LOG(INFO) << "Taking item from front of queue";
+
+  kcef_->set_url(queue_.front());
+  queue_.pop_front();
 }

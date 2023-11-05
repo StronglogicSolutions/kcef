@@ -4,24 +4,32 @@
 namespace kiq {
 static const char* RX_ADDR{"tcp://0.0.0.0:28479"};
 static const char* TX_ADDR{"tcp://0.0.0.0:28474"};
+static const char* AX_ADDR{"tcp://0.0.0.0:28480"};
 
 server::server()
 : context_{1},
   rx_(context_, ZMQ_ROUTER),
-  tx_(context_, ZMQ_DEALER)
+  tx_(context_, ZMQ_DEALER),
+  ax_(context_, ZMQ_DEALER)
 {
   rx_.set(zmq::sockopt::linger, 0);
   tx_.set(zmq::sockopt::linger, 0);
+  ax_.set(zmq::sockopt::linger, 0);
   rx_.set(zmq::sockopt::routing_id, "sentinel_daemon");
   tx_.set(zmq::sockopt::routing_id, "sentinel");
+  ax_.set(zmq::sockopt::routing_id, "sentinel_app");
   rx_.set(zmq::sockopt::tcp_keepalive, 1);
   tx_.set(zmq::sockopt::tcp_keepalive, 1);
+  ax_.set(zmq::sockopt::tcp_keepalive, 1);
   rx_.set(zmq::sockopt::tcp_keepalive_idle,  300);
   tx_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+  ax_.set(zmq::sockopt::tcp_keepalive_idle,  300);
   rx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
   tx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
+  ax_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
   rx_.bind   (RX_ADDR);
   tx_.connect(TX_ADDR);
+  ax_.connect(AX_ADDR);
 }
 //----------------------------------
 void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
@@ -44,8 +52,10 @@ ipc_msg_t server::wait_and_pop()
 
   ipc_msg_t msg = std::move(msgs_.front());
   msgs_.pop_front();
-
-  LOG(INFO) << "Popping message: " << msg->to_string();
+  if (!msg)
+    LOG(ERROR) << "Popped null message";
+  else
+    LOG(INFO) << "Popping message: " << msg->to_string();
   return msg;
 }
 //----------------------------------
@@ -69,7 +79,17 @@ server::poll()
 //----------------------------------
 zmq::socket_t& server::socket()
 {
-  return tx_;
+  return (reply_) ? ax_ : tx_;
+}
+//----------------------------------
+void server::set_reply_pending(bool pending)
+{
+  reply_ = pending;
+}
+//----------------------------------
+void server::on_done()
+{
+  reply_ = false;
 }
 //----------------------------------
 void server::recv(bool tx)
@@ -90,6 +110,7 @@ void server::recv(bool tx)
 
   while (more_flag && sock.recv(msg))
   {
+    LOG(INFO) << "Received frame: " << msg.to_string();
     buffer.push_back({static_cast<char*>(msg.data()), static_cast<char*>(msg.data()) + msg.size()});
     more_flag = sock.get(zmq::sockopt::rcvmore);
   }

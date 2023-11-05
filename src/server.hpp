@@ -14,9 +14,11 @@ class server : public kiq::IPCHandlerInterface
   ~server() final = default;
   void      process_message(kiq::ipc_message::u_ipc_msg_ptr msg) final;
   ipc_msg_t wait_and_pop();
+  void      set_reply_pending(bool pending = true);
 
  protected:
   zmq::socket_t& socket() final;
+  void           on_done() final;
 
  private:
   void    run ();
@@ -29,6 +31,8 @@ class server : public kiq::IPCHandlerInterface
   zmq::context_t        context_;
   zmq::socket_t         rx_;
   zmq::socket_t         tx_;
+  zmq::socket_t         ax_;
   messages_t            msgs_;
+  bool                  reply_{false};
 };
 } // ns kiq

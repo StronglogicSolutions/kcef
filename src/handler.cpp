@@ -218,5 +218,15 @@ std::string KCEFClient::get_url() const
 void KCEFClient::Visit(const CefString& s)
 {
   current_source_ = s.ToString();
+  LOG(INFO) << "Visit()";
   cb_(current_source_);
+}
+
+void KCEFClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                           CefRefPtr<CefFrame>   frame,
+                           int                   code)
+{
+  LOG(INFO) << "OnLoadEnd code: " << code;
+  if (code == 200)
+    query("get");
 }
