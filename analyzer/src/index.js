@@ -2,80 +2,22 @@ const path                         = require('path')
 const fs                           = require('fs')
 const { JSDOM                    } = require('jsdom')
 const { dockStart                } = require('@nlpjs/basic')
-const { spawn                    } = require('node:child_process')
 const { DomainManager, NluNeural } = require('@nlpjs/nlu')
 const { containerBootstrap       } = require('@nlpjs/core')
 const { LangEn                   } = require('@nlpjs/lang-en')
+const { get_name                 } = require('./utils')
+const { analyze_tweets,
+        get_input                } = require('./handlers/twitter')
+
 const dockstart   = dockStart
 const file_path   = process.argv[2]
 const url         = process.argv[3]
-const text_target = '[data-testid="tweetText"]'
-const user_target = '[data-testid="User-Name"]'
-let nlp
+let   nlp
 //--------------------------------------------
 if (!file_path.length)
 {
   console.error("Please provide the path to an HTML file and its originating URL as runtime arguments")
   process.exit(1)
-}
-
-async function analyze(text, command)
-{
-  let r
-  let p = new Promise(resolve => r = resolve)
-  let ret
-
-  const process  = spawn(path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app"), [`--description="${text}"`, command])
-
-  process.stdout.on('data', (data) =>
-  {
-    ret = data
-    r()
-  })
-
-  process.stderr.on('data', (data) =>
-  {
-    console.error("Error forking process", data.toString())
-    ret = data
-    r()
-  })
-
-  await p
-
-  return JSON.parse(ret.toString())
-}
-//--------------------------------------------
-function get_name()
-{
-  const full = url.substring(url.indexOf("://") + 3)
-  return full.substring(0, full.lastIndexOf('.'))
-}
-//--------------------------------------------
-function get_input(doc)
-{
-  const parse_user = user =>
-  {
-    return user.firstElementChild.nextElementSibling.firstElementChild.firstElementChild
-      .textContent.trim()
-      .replace(/\s+/g, ' ')
-      .replace(/\n+/g,  '')
-      .replace('@',     '')
-  }
-
-  const input = []
-  const list  = doc.querySelectorAll(text_target)
-  for (const item of list)
-  {
-    const parent = item.parentNode.previousElementSibling
-    if (!parent)
-      continue
-
-    const user = parent.querySelector(user_target)
-    if (user)
-      input.push({ text: item.textContent, username: parse_user(user) })
-  }
-
-  return input
 }
 //--------------------------------------------
 async function train_nlp(nlp)
@@ -85,67 +27,12 @@ async function train_nlp(nlp)
   await nlp.train()
 }
 //--------------------------------------------
-async function create_analysis(items)
-{
-  const words  = Object.keys(JSON.parse(nlp.export(false)).ner.rules.en)
-  const has_watchword = entities =>
-  {
-    for (const item of entities)
-      if (words.find(word => { return word === item.entity }))
-        return true
-    return false
-  }
-
-  let   select = []
-  const data   = []
-  for (const item of items)
-    data.push({ nlp: await nlp.process('en', item.text), username: item.username })
-
-  async function find_candidates()
-  {
-    const result = []
-    for (const item of data)
-      if (has_watchword(item.nlp.entities))
-        result.push({ ...item })
-    return result
-  }
-
-  function identify_target(item)
-  {
-    const rank = { Person: 4, Organization: 3, Location: 2, Unknown: 1 }
-    let ret
-    for (const entity of item.context.entities)
-      if (!entity.type in rank)
-        console.warn(`${entity.type} is an unfamiliar entity`)
-      else
-      if (!ret || rank[entity.type] > rank[ret.type])
-        ret = entity
-    return ret
-  }
-
-  async function compute_resolutions()
-  {
-    select = await find_candidates()
-    for (let i = 0; i < select.length; i++)
-    {
-      select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
-      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
-      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
-      select[i].target    = identify_target(select[i])
-      select[i].result    = "computed"
-    }
-  }
-
-  await compute_resolutions()
-
-  return select
-}
 //--------------------------------------------
 const handlers =
 {
   "twitter": async (doc) =>
   {
-    console.log(JSON.stringify(await create_analysis(get_input(doc))))
+    console.log(JSON.stringify(await analyze_tweets(nlp, get_input(doc))))
   }
 }
 //--------------------------------------------
@@ -176,8 +63,8 @@ const handlers =
   {
     const data = fs.readFileSync(file_path).toString()
     const doc  = new JSDOM(data).window.document
-    const name = get_name()
-    handlers[name](doc)
+
+    handlers[get_name(url)](doc)
   }
   catch ({ message })
   {
