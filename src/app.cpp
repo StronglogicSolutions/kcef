@@ -88,6 +88,7 @@ void SimpleApp::OnContextInitialized()
 
   CefRefPtr<KCEFClient> handler(new KCEFClient(use_views));
   CefBrowserSettings       browser_settings;
+  browser_settings.javascript = STATE_ENABLED;
 
   std::string url = command_line->GetSwitchValue("url");
   if (url.empty())

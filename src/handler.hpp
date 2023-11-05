@@ -49,6 +49,10 @@ class KCEFClient : public CefClient,
                            const CefString& errorText,
                            const CefString& failedUrl) override;
 
+  virtual void OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefFrame>   frame,
+                         int                   code) final;
+
   // Request that all existing browser windows close.
   void CloseAllBrowsers(bool force_close);
 
