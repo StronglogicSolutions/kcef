@@ -1,13 +1,19 @@
 const { analyze                  } = require('../utils')
 const { create_controller        } = require('../socket')
-
+const { JSDOM                    } = require('jsdom')
 const text_target = '[data-testid="tweetText"]'
 const user_target = '[data-testid="User-Name"]'
 const controller  = create_controller()
 
-//--------------------------------------------
-async function create_analysis(nlp, items)
+function read_user(data)
 {
+  const doc = new JSDOM(data).window.document
+  return data
+}
+//--------------------------------------------
+async function create_analysis(nlp, doc)
+{
+  const items         = get_input(doc)
   const words         = Object.keys(JSON.parse(nlp.export(false)).ner.rules.en)
   const user_url      = name => { return `https://twitter.com/${name}` }
   const has_watchword = entities =>
@@ -55,8 +61,8 @@ async function create_analysis(nlp, items)
     for (let i = 0; i < select.length; i++)
     {
       select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
-      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
-      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
+      // select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
+      // select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
       select[i].target    = identify_target(select[i])
       select[i].result    = "computed"
     }
@@ -67,13 +73,12 @@ async function create_analysis(nlp, items)
     for (let i = 0; i < select.length; i++)
     {
       await controller.send(user_url(select[i].username))
-      select[i].user = await controller.recv()
+      select[i].user = read_user(await controller.recv())
     }
   }
 
   await compute_resolutions()
   await fetch_users()
-
   return select
 }
 //--------------------------------------------
