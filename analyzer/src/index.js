@@ -6,9 +6,7 @@ const { DomainManager, NluNeural } = require('@nlpjs/nlu')
 const { containerBootstrap       } = require('@nlpjs/core')
 const { LangEn                   } = require('@nlpjs/lang-en')
 const { get_name                 } = require('./utils')
-const { analyze_tweets,
-        get_input                } = require('./handlers/twitter')
-
+const { analyze_tweets           } = require('./handlers/twitter')
 const dockstart   = dockStart
 const file_path   = process.argv[2]
 const url         = process.argv[3]
@@ -32,7 +30,7 @@ const handlers =
 {
   "twitter": async (doc) =>
   {
-    console.log(JSON.stringify(await analyze_tweets(nlp, get_input(doc))))
+    console.log(JSON.stringify(await analyze_tweets(nlp, doc)))
   }
 }
 //--------------------------------------------
