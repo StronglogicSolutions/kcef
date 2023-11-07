@@ -207,7 +207,7 @@ void KCEFClient::set_url(const std::string& url) const
 
 void KCEFClient::query(const std::string& q)
 {
-  browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->GetSource(this);
+  kutils::make_event([this]{ browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->GetSource(this); });
 }
 
 std::string KCEFClient::get_url() const

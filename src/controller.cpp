@@ -38,7 +38,12 @@ controller::controller(kcef_interface* kcef)
     {kiq::constants::IPC_OK_TYPE, [this](auto msg) { LOG(INFO) << "Received OK: " << msg->to_string(); }}}), // REPLY OK
   kiq_handler({
     { "sentinel:messages", [this](auto args) { enqueue(args.at(1));        }},   // KIQ REQUESTS
-    { "sentinel:query",    [this](auto args) { kcef_->query  (args.at(1)); }},   // FIND SOMETHING TO ANALYZE
+    { "sentinel:query",    [this](auto args)                                     // FIND SOMETHING TO ANALYZE
+    {
+      app_active_ = true;
+      kcef_->query  (args.at(1));
+    }
+    },
     { "sentinel:loadurl",  [this](auto args)                                     // LOAD URL
     {
       LOG(INFO) << "handling loadurl";
@@ -50,9 +55,14 @@ controller::controller(kcef_interface* kcef)
 {
   kcef_->init([this](const std::string& s)                                       // query callback
   {
-    LOG(INFO) << "kcef callback";
     const auto url      = kcef_->get_url();
     const auto filename = kutils::get_unix_tstring() + ".html";
+    kutils::SaveToFile(s, filename);
+
+    LOG(INFO) << "Saved " << url;
+
+    if (!app_waiting_ && !app_active_)
+      return;
 
     if (app_waiting_) // TODO: this is messy
     {
@@ -62,18 +72,16 @@ controller::controller(kcef_interface* kcef)
       return;
     }
 
-    kutils::SaveToFile(s, filename);
-
-    LOG(INFO) << "Saved " << url << " from " << url;
-
-    const auto result = kiq::qx({"./app.sh", filename, url});                    // ANALYZE
-    if (result.error)
-      LOG(ERROR) << "NodeJS app failed: " << result.output;
-    else
-      LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
-
+    kutils::make_event([&filename, &url, this]
+    {
+      const auto result = kiq::qx({"./app.sh", filename, url});                    // ANALYZE
+      if (result.error)
+        LOG(ERROR) << "NodeJS app failed: " << result.output;
+      else
+        LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
+      kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", result.output, "agitation analysis"));
+    }, 0);
     kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", s,             "source"));
-    kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", result.output, "agitation analysis"));
   });
 }
 //-----------------------------------
