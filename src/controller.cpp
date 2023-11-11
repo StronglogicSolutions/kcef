@@ -68,20 +68,18 @@ controller::controller(kcef_interface* kcef)
     {
       LOG(INFO) << "app was waiting";
       app_waiting_ = false;
-      kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("sentinel", "new_url", s));
+      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", s, "new_url"));
       return;
     }
 
-    kutils::make_event([&filename, &url, this]
-    {
-      const auto result = kiq::qx({"./app.sh", filename, url});                    // ANALYZE
-      if (result.error)
-        LOG(ERROR) << "NodeJS app failed: " << result.output;
-      else
-        LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
-      kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", result.output, "agitation analysis"));
-    }, 0);
-    kiq_.send_ipc_message(std::make_unique<kiq::platform_info>("", s,             "source"));
+    const auto result = kiq::qx({"./app.sh", filename, url});                    // ANALYZE
+    if (result.error)
+      LOG(ERROR) << "NodeJS app failed: " << result.output;
+    else
+      LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
+
+    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", result.output, "agitation analysis"));
+    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s,             "source"));
   });
 }
 //-----------------------------------

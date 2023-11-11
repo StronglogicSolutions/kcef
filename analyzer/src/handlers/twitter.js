@@ -5,11 +5,6 @@ const text_target = '[data-testid="tweetText"]'
 const user_target = '[data-testid="User-Name"]'
 const controller  = create_controller()
 
-function read_user(data)
-{
-  const doc = new JSDOM(data).window.document
-  return data
-}
 //--------------------------------------------
 async function create_analysis(nlp, doc)
 {
@@ -41,6 +36,40 @@ async function create_analysis(nlp, doc)
         result.push({ ...item })
     return result
   }
+  //
+  async function read_user(data)
+  {
+    const result = {
+      "agitator": false,
+      "type": "",
+      "score": 0,
+      "description": ""
+    }
+
+    const doc = new JSDOM(data).window.document
+    const scripts = [...doc.scripts]
+
+    for (const script of scripts)
+      for (const attribute of script.attributes)
+        if (attribute.name === 'data-testid' && attribute.value === 'UserProfileSchema-test')
+        {
+          const userdata      = JSON.parse(script.text)
+          result.description  = userdata['author']['description']
+          const user_analysis = await nlp.process('en', result.description)
+          for (const entity of user_analysis.nlp.entities)
+          {
+            if (entity.entity === "agitator")
+            {
+              result.agitator = true
+              result.type     = entity.option
+              result.score    = user_analysis.nlp.entities.length
+              break
+            }
+          }
+        }
+
+    return result
+  }
   //--------------
   function identify_target(item)
   {
@@ -61,8 +90,8 @@ async function create_analysis(nlp, doc)
     for (let i = 0; i < select.length; i++)
     {
       select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
-      // select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
-      // select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
+      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
+      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
       select[i].target    = identify_target(select[i])
       select[i].result    = "computed"
     }
@@ -73,7 +102,7 @@ async function create_analysis(nlp, doc)
     for (let i = 0; i < select.length; i++)
     {
       await controller.send(user_url(select[i].username))
-      select[i].user = read_user(await controller.recv())
+      select[i].user = await read_user(await controller.recv())
     }
   }
 
