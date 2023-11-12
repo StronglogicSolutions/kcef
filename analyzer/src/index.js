@@ -30,7 +30,9 @@ const handlers =
 {
   "twitter": async (doc) =>
   {
-    console.log(JSON.stringify(await analyze_tweets(nlp, doc)))
+    const result = JSON.stringify(await analyze_tweets(nlp, doc))
+    fs.writeFileSync('./analysis.json', result)
+    console.log(result)
   }
 }
 //--------------------------------------------

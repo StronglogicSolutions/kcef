@@ -1,8 +1,10 @@
 const { analyze                  } = require('../utils')
 const { create_controller        } = require('../socket')
 const { JSDOM                    } = require('jsdom')
+const fs = require('fs')
 const text_target = '[data-testid="tweetText"]'
-const user_target = '[data-testid="User-Name"]'
+const name_target = '[data-testid="User-Name"]'
+const user_target = '[data-testid="UserName"]'
 const controller  = create_controller()
 
 //--------------------------------------------
@@ -36,7 +38,7 @@ async function create_analysis(nlp, doc)
         result.push({ ...item })
     return result
   }
-  //
+  //--------------
   async function read_user(data)
   {
     const result = {
@@ -46,27 +48,19 @@ async function create_analysis(nlp, doc)
       "description": ""
     }
 
-    const doc = new JSDOM(data).window.document
-    const scripts = [...doc.scripts]
-
-    for (const script of scripts)
-      for (const attribute of script.attributes)
-        if (attribute.name === 'data-testid' && attribute.value === 'UserProfileSchema-test')
-        {
-          const userdata      = JSON.parse(script.text)
-          result.description  = userdata['author']['description']
-          const user_analysis = await nlp.process('en', result.description)
-          for (const entity of user_analysis.nlp.entities)
-          {
-            if (entity.entity === "agitator")
-            {
-              result.agitator = true
-              result.type     = entity.option
-              result.score    = user_analysis.nlp.entities.length
-              break
-            }
-          }
-        }
+    const doc          = new JSDOM(data).window.document
+    result.description = doc.querySelector(user_target).nextElementSibling.textContent
+    const user_analysis = await nlp.process('en', result.description)
+    for (const entity of user_analysis.entities)
+    {
+      if (entity.entity === "agitator")
+      {
+        result.agitator = true
+        result.type     = entity.option
+        result.score    = user_analysis.entities.length
+        break
+      }
+    }
 
     return result
   }
@@ -75,6 +69,9 @@ async function create_analysis(nlp, doc)
   {
     const rank = { Person: 4, Organization: 3, Location: 2, Unknown: 1 }
     let ret
+    if (!item.context || !item.context.entities || !item.context.entities.length)
+      return ret
+
     for (const entity of item.context.entities)
       if (!entity.type in rank)
         console.warn(`${entity.type} is an unfamiliar entity`)
@@ -130,7 +127,7 @@ function get_input(doc)
     if (!parent)
       continue
 
-    const user = parent.querySelector(user_target)
+    const user = parent.querySelector(name_target)
     if (user)
       input.push({ text: item.textContent, username: parse_user(user) })
   }
