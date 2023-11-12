@@ -1,6 +1,6 @@
 const zmq  = require("zeromq")
 const { kproto, deserialize } = require('../../third_party/kproto/js/kproto')
-
+const fs = require('fs')
 const command = "loadurl"
 const appname = "sentinel"
 const tx_addr = "tcp://localhost:28479"
@@ -26,7 +26,7 @@ function create_controller()
 
     recv: async function()
     {
-      const buffer = await this.rx_.receive()
+      const buffer = await (await this.rx_.receive())
       const frames = buffer.toString().split(',')
       const sender = frames.shift()                // Should be sentinel
       return deserialize(frames)
