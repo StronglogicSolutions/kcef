@@ -6,6 +6,20 @@
 using json_t    = nlohmann::json;
 using kiq_msg_t = kiq::kiq_message;
 
+std::string
+escape_s(const std::string& s)
+{
+  std::string out;
+  for (const char& c : s)
+  {
+    if (c == ',')
+      out += "%2C";
+    else
+      out += c;
+  }
+  return out;
+}
+
 controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
   dispatch_({
@@ -59,7 +73,7 @@ controller::controller(kcef_interface* kcef)
     const auto filename = kutils::get_unix_tstring() + ".html";
     kutils::SaveToFile(s, filename);
 
-    LOG(INFO) << "Saved " << url;
+    LOG(INFO) << "Saved " << url << " to " << filename;
 
     if (!app_waiting_ && !app_active_)
       return;
@@ -68,11 +82,11 @@ controller::controller(kcef_interface* kcef)
     {
       LOG(INFO) << "app was waiting";
       app_waiting_ = false;
-      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", s, "new_url"));
+      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url"));
       return;
     }
 
-    const auto result = kiq::qx({"./app.sh", filename, url});                    // ANALYZE
+    const auto result = kiq::qx({"./app.sh", filename, url}, 300);            // ANALYZE
     if (result.error)
       LOG(ERROR) << "NodeJS app failed: " << result.output;
     else
