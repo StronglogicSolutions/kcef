@@ -43,22 +43,23 @@ async function create_analysis(nlp, doc)
   {
     const result = {
       "agitator": false,
-      "type": "",
+      "types": [],
       "score": 0,
       "description": ""
     }
 
-    const doc          = new JSDOM(data).window.document
-    result.description = doc.querySelector(user_target).nextElementSibling.textContent
+    const doc           = new JSDOM(data).window.document
+    result.description  = doc.querySelector(user_target).nextElementSibling.textContent
     const user_analysis = await nlp.process('en', result.description)
+    let   imp_idx       = 0
     for (const entity of user_analysis.entities)
     {
-      if (entity.entity === "agitator")
+      if (entity.entity.includes("agitator"))
       {
-        result.agitator = true
-        result.type     = entity.option
-        result.score    = user_analysis.entities.length
-        break
+        result.types.push(entity.option)
+        result.score++
+        if (entity.entity === "agitator_exp" || ++imp_idx > 2)
+          result.agitator = true
       }
     }
 
@@ -94,12 +95,21 @@ async function create_analysis(nlp, doc)
     }
   }
   //--------------
+  async function formulate_strategy(data)
+  {
+    const text = data.nlp.utterance
+    const user = data.user
+    // TODO: Outline a procedure
+  }
+  //--------------
   async function fetch_users()
   {
     for (let i = 0; i < select.length; i++)
     {
       await controller.send(user_url(select[i].username))
       select[i].user = await read_user(await controller.recv())
+      if (select[i].user.agitator)
+        formulate_strategy(select[i])
     }
   }
 
