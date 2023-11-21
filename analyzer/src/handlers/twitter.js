@@ -1,6 +1,6 @@
-const { analyze                  } = require('../utils')
-const { create_controller        } = require('../socket')
-const { JSDOM                    } = require('jsdom')
+const { analyze, fetch_wiki } = require('../utils')
+const { create_controller   } = require('../socket')
+const { JSDOM               } = require('jsdom')
 const fs = require('fs')
 const text_target = '[data-testid="tweetText"]'
 const name_target = '[data-testid="User-Name"]'
@@ -43,22 +43,23 @@ async function create_analysis(nlp, doc)
   {
     const result = {
       "agitator": false,
-      "type": "",
+      "types": [],
       "score": 0,
       "description": ""
     }
 
-    const doc          = new JSDOM(data).window.document
-    result.description = doc.querySelector(user_target).nextElementSibling.textContent
+    const doc           = new JSDOM(data).window.document
+    result.description  = doc.querySelector(user_target).nextElementSibling.textContent
     const user_analysis = await nlp.process('en', result.description)
+    let   imp_idx       = 0
     for (const entity of user_analysis.entities)
     {
-      if (entity.entity === "agitator")
+      if (entity.entity.includes("agitator"))
       {
-        result.agitator = true
-        result.type     = entity.option
-        result.score    = user_analysis.entities.length
-        break
+        result.types.push(entity.option)
+        result.score++
+        if (entity.entity === "agitator_exp" || ++imp_idx > 2)
+          result.agitator = true
       }
     }
 
@@ -68,7 +69,7 @@ async function create_analysis(nlp, doc)
   function identify_target(item)
   {
     const rank = { Person: 4, Organization: 3, Location: 2, Unknown: 1 }
-    let ret
+    let ret = { value: "", type: "None" }
     if (!item.context || !item.context.entities || !item.context.entities.length)
       return ret
 
@@ -94,12 +95,30 @@ async function create_analysis(nlp, doc)
     }
   }
   //--------------
+  async function formulate_strategy(data)
+  {
+    const text          = data.nlp.utterance
+    const user          = data.user
+    const context       = data.context
+    const is_assertion  = context.objective.includes("assertion")
+    const is_question   = context.objective.includes("question")
+    const is_imperative = context.objective.includes("imperative")
+    const is_negative   = data.nlp.sentiment.score < 0
+    const target        = data.target.value
+    const wiki          = await fetch_wiki(encodeURI(target))
+
+    return `Strategy:\ntext: ${text}\nuser: ${user}\ncontext: ${context}\nassertion: ${is_assertion}\nquestion: ${is_question}\nimperative: ${is_imperative}\nnegative: ${is_negative}\ntarget: ${target}\nwiki: ${wiki}`
+
+  }
+  //--------------
   async function fetch_users()
   {
     for (let i = 0; i < select.length; i++)
     {
       await controller.send(user_url(select[i].username))
       select[i].user = await read_user(await controller.recv())
+      if (select[i].user.agitator)
+        select[i].strategy = await formulate_strategy(select[i])
     }
   }
 
