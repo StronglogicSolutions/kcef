@@ -8,8 +8,9 @@ async function analyze(text, command)
   let r
   let p = new Promise(resolve => r = resolve)
   let ret
-
-  const process  = spawn(path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app"), [`--description="${text}"`, command])
+  const program  = path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app")
+  const args     = [`--description="${text}"`, command]
+  const process  = spawn(program, args)
 
   process.stdout.on('data', (data) =>
   {

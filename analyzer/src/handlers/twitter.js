@@ -39,7 +39,7 @@ async function create_analysis(nlp, doc)
     return result
   }
   //--------------
-  async function read_user(data)
+  async function read_user(data, name)
   {
     const result = {
       "agitator": false,
@@ -49,10 +49,26 @@ async function create_analysis(nlp, doc)
     }
 
     const doc           = new JSDOM(data).window.document
-    result.description  = doc.querySelector(user_target).nextElementSibling.textContent
+    const selector      = doc.querySelector(user_target)
+    if (!selector)
+      return result
+
+    result.description  = selector.nextElementSibling.textContent
     const user_analysis = await nlp.process('en', result.description)
+    const name_analysis = await nlp.process('en', name)
     let   imp_idx       = 0
     for (const entity of user_analysis.entities)
+    {
+      if (entity.entity.includes("agitator"))
+      {
+        result.types.push(entity.option)
+        result.score++
+        if (entity.entity === "agitator_exp" || ++imp_idx > 2)
+          result.agitator = true
+      }
+    }
+
+    for (const entity of name_analysis.entities)
     {
       if (entity.entity.includes("agitator"))
       {
@@ -88,8 +104,8 @@ async function create_analysis(nlp, doc)
     for (let i = 0; i < select.length; i++)
     {
       select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
-      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
-      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
+      // select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
+      // select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
       select[i].target    = identify_target(select[i])
       select[i].result    = "computed"
     }
@@ -107,7 +123,7 @@ async function create_analysis(nlp, doc)
     const target        = data.target.value
     const wiki          = await fetch_wiki(encodeURI(target))
 
-    return `Strategy:\ntext: ${text}\nuser: ${user}\ncontext: ${context}\nassertion: ${is_assertion}\nquestion: ${is_question}\nimperative: ${is_imperative}\nnegative: ${is_negative}\ntarget: ${target}\nwiki: ${wiki}`
+    return `Strategy:\ntext: ${text}\nuser: ${JSON.stringify(user)}\ncontext: ${JSON.stringify(context)}\nassertion: ${is_assertion}\nquestion: ${is_question}\nimperative: ${is_imperative}\nnegative: ${is_negative}\ntarget: ${target}\nwiki: ${wiki}`
 
   }
   //--------------
@@ -116,7 +132,8 @@ async function create_analysis(nlp, doc)
     for (let i = 0; i < select.length; i++)
     {
       await controller.send(user_url(select[i].username))
-      select[i].user = await read_user(await controller.recv())
+      const received = await controller.recv()
+      select[i].user = await read_user(received, select[i].username)
       if (select[i].user.agitator)
         select[i].strategy = await formulate_strategy(select[i])
     }
@@ -124,6 +141,7 @@ async function create_analysis(nlp, doc)
 
   await compute_resolutions()
   await fetch_users()
+  await controller.send(JSON.stringify(select), "analysis")
   return select
 }
 //--------------------------------------------
