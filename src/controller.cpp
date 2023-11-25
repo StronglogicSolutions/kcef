@@ -64,7 +64,16 @@ controller::controller(kcef_interface* kcef)
       app_waiting_ = true;
       kiq_.set_reply_pending();
       enqueue(args.at(0));
-    }}
+    }
+    },
+    { "sentinel:analysis",  [this](auto args)                                     // LOAD URL
+    {
+      LOG(INFO) << "handling analysis results. Printing args";
+      for (const auto& arg : args)
+        LOG(INFO) << "Arg: " << arg;
+      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
+    }
+    }
   })
 {
   kcef_->init([this](const std::string& s)                                       // query callback
@@ -86,13 +95,12 @@ controller::controller(kcef_interface* kcef)
       return;
     }
 
-    const auto result = kiq::qx({"./app.sh", filename, url}, 300);            // ANALYZE
+    const auto result = kiq::qx({"./app.sh", filename, url}, 0);               // ANALYZE
     if (result.error)
       LOG(ERROR) << "NodeJS app failed: " << result.output;
     else
       LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
 
-    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", result.output, "agitation analysis"));
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s,             "source"));
   });
 }
@@ -117,7 +125,8 @@ controller::state controller::work()
 //----------------------------------
 void controller::enqueue(const std::string& url)
 {
-  queue_.push_back(url);
+  if (!url.empty())
+    queue_.push_back(url);
 }
 //----------------------------------
 void controller::handle_queue()
