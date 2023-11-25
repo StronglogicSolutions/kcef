@@ -19,9 +19,9 @@ function create_controller()
       await this.rx_.bind(rx_addr);
     },
 
-    send: async function(url)
+    send: async function(data, cmd = command)
     {
-      await this.tx_.send(kproto(command, url, appname))
+      await this.tx_.send(kproto(cmd, data, appname))
     },
 
     recv: async function()
