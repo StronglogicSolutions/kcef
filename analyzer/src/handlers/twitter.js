@@ -84,7 +84,7 @@ async function create_analysis(nlp, doc)
   //--------------
   function identify_target(item)
   {
-    const rank = { Person: 4, Organization: 3, Location: 2, Unknown: 1 }
+    const rank = { Person: 4, Organization: 3, Location: 2, Unknown: 1, None: 0 }
     let ret = { value: "", type: "None" }
     if (!item.context || !item.context.entities || !item.context.entities.length)
       return ret
