@@ -76,7 +76,7 @@ controller::controller(kcef_interface* kcef)
     }
   })
 {
-  kcef_->init([this](const std::string& s)                                       // query callback
+  kcef_->init([this](const std::string& s)                                       // QUERY CALLBACK
   {
     const auto url      = kcef_->get_url();
     const auto filename = kutils::get_unix_tstring() + ".html";
@@ -87,7 +87,7 @@ controller::controller(kcef_interface* kcef)
     if (!app_waiting_ && !app_active_)
       return;
 
-    if (app_waiting_) // TODO: this is messy
+    if (app_waiting_)
     {
       LOG(INFO) << "app was waiting";
       app_waiting_ = false;
@@ -95,13 +95,13 @@ controller::controller(kcef_interface* kcef)
       return;
     }
 
-    const auto result = kiq::qx({"./app.sh", filename, url}, 0);               // ANALYZE
-    if (result.error)
-      LOG(ERROR) << "NodeJS app failed: " << result.output;
+    const auto process = kiq::process({"./app.sh", filename, url}, 0);          // ANALYZE
+    if (process.has_error())
+      LOG(ERROR) << "NodeJS app failed: " << process.get_error();
     else
-      LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
+      LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
 
-    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s,             "source"));
+    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
   });
 }
 //-----------------------------------
