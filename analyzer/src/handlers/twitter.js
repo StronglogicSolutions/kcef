@@ -115,7 +115,9 @@ async function create_analysis(nlp, doc)
   {
     const text          = data.nlp.utterance
     const user          = data.user
-    const context       = data.context
+    const contexts      = data.context
+    const context       = contexts[0]
+    const phrases       = contexts.map(context => { return context.message } )
     const is_assertion  = context.objective.includes("assertion")
     const is_question   = context.objective.includes("question")
     const is_imperative = context.objective.includes("imperative")
