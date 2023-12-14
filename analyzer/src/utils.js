@@ -8,6 +8,7 @@ async function analyze(text, command)
   let r
   let p = new Promise(resolve => r = resolve)
   let ret
+
   const program  = path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app")
   const args     = [`--description="${text}"`, command]
   const process  = spawn(program, args)
@@ -26,7 +27,6 @@ async function analyze(text, command)
   })
 
   await p
-
   return JSON.parse(ret.toString())
 }
 //--------------------------------------------
