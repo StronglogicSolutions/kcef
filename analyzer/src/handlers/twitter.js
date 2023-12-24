@@ -67,7 +67,6 @@ async function create_analysis(nlp, doc)
           result.agitator = true
       }
     }
-
     for (const entity of name_analysis.entities)
     {
       if (entity.entity.includes("agitator"))
@@ -104,8 +103,8 @@ async function create_analysis(nlp, doc)
     for (let i = 0; i < select.length; i++)
     {
       select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
-      // select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
-      // select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
+      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
+      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
       select[i].target    = identify_target(select[i])
       select[i].result    = "computed"
     }
@@ -122,11 +121,49 @@ async function create_analysis(nlp, doc)
     const is_question   = context.objective.includes("question")
     const is_imperative = context.objective.includes("imperative")
     const is_negative   = data.nlp.sentiment.score < 0
-    const target        = data.target.value
-    const wiki          = await fetch_wiki(encodeURI(target))
+    let target        = data.target.value
+    if (!target)
+    {
+      for (const context of contexts)
+      {
+        for (const entity of context.entities)
+        {
+          if (entity.type != 'unknown')
+          {
+            target = entity.value
+            break
+          }
+        }
+        if (target)
+          break
+      }
 
-    return `Strategy:\ntext: ${text}\nuser: ${JSON.stringify(user)}\ncontext: ${JSON.stringify(context)}\nassertion: ${is_assertion}\nquestion: ${is_question}\nimperative: ${is_imperative}\nnegative: ${is_negative}\ntarget: ${target}\nwiki: ${wiki}`
+      if (!target)
+      {
+        if (data.nlp.entities.length)
+        {
+          const entity = data.nlp.entities[0]
+          target = entity.utteranceText
+          data.target.value =  target
+        }
+      }
 
+      if (target)
+        data.target.value = target
+    }
+
+    const wiki = await fetch_wiki(encodeURI(target))
+    return {
+      text,
+      user,
+      context,
+      is_assertion,
+      is_question,
+      is_imperative,
+      is_negative,
+      target,
+      wiki
+    }
   }
   //--------------
   async function fetch_users()

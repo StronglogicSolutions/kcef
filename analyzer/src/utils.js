@@ -1,7 +1,6 @@
 const { spawn } = require('node:child_process')
 const path      = require('path')
-const wiki_url  = "https://en.wikipedia.org/w/api.php?action=query&utf8=&format=json&list=search&srsearch="
-
+const make_url  = query => `https://en.wikipedia.org/w/api.php?action=query&utf8\=&format=json&generator=search&prop=extracts&exintro=true&explaintext=true&list=search&gsrsearch=${query}&srsearch=${query}`
 //--------------------------------------------
 async function analyze(text, command)
 {
@@ -39,19 +38,18 @@ function get_name(url)
 const fetch_wiki = async (query) =>
 {
   let   ret        = ""
-  const ex_pattern = /<([^</> ]+)[^<>]*?>[^<>]*?<\/\1> */gi
-  const response   = await fetch(wiki_url + query)
-  if (response.ok)
+  if (!query.length)
+    return ret
+
+  const response   = await fetch(make_url(query)).catch(e => console.error("Fetch error", e))
+  if (response && response.ok)
   {
-    const data = await response.json()
+    const data   = await response.json()
     const result = data["query"]
-    if (result && "search" in result)
-      for (const item of result["search"])
-        ret += item["snippet"].replaceAll(ex_pattern, '') + '\n'
+    if (result && "search" in result && result["search"].length)
+      ret = result["pages"][result["search"][0].pageid]["extract"]
   }
 
-  if (ret.length)
-    ret = ret.substring(0, ret.length - 1)
   return ret
 }
 module.exports.analyze = analyze
