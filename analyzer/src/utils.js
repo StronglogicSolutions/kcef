@@ -4,28 +4,30 @@ const make_url  = query => `https://en.wikipedia.org/w/api.php?action=query&utf8
 //--------------------------------------------
 async function analyze(text, command)
 {
-  let r
-  let p = new Promise(resolve => r = resolve)
+  const def = { }
+  def.p = new Promise(resolve => def.r = resolve)
   let ret
 
   const program  = path.join(__dirname, "../../", "third_party/knlp/out", "knlp_app")
   const args     = [`--description="${text}"`, command]
   const process  = spawn(program, args)
 
+  console.log('Running: ', program, args)
   process.stdout.on('data', (data) =>
   {
     ret = data
-    r()
+    def.r()
   })
 
   process.stderr.on('data', (data) =>
   {
     console.error("Error forking process", data.toString())
     ret = data
-    r()
+    def.r
   })
 
-  await p
+  await def.p
+  console.log('forked process returned', ret.toString())
   return JSON.parse(ret.toString())
 }
 //--------------------------------------------

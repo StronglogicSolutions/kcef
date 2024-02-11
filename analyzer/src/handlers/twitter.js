@@ -112,16 +112,29 @@ async function create_analysis(nlp, doc)
   //--------------
   async function formulate_strategy(data)
   {
+
+    const is_good_context = context =>
+    {
+      if (context.message.length > 10)
+      {
+        const words = context.message.split(' ')
+        let hash_count = 0
+        for (const word of words)
+        {
+          if (word.startsWith('#'))
+            hash_count++
+        }
+        return (hash_count < (0.8 * words.length))
+      }
+      return false
+    }
+
     const text          = data.nlp.utterance
     const user          = data.user
     const contexts      = data.context
-    const context       = contexts[0]
     const phrases       = contexts.map(context => { return context.message } )
-    const is_assertion  = context.objective.includes("assertion")
-    const is_question   = context.objective.includes("question")
-    const is_imperative = context.objective.includes("imperative")
     const is_negative   = data.nlp.sentiment.score < 0
-    let target        = data.target.value
+    let   target        = data.target.value
     if (!target)
     {
       for (const context of contexts)
@@ -152,18 +165,41 @@ async function create_analysis(nlp, doc)
         data.target.value = target
     }
 
-    const wiki = await fetch_wiki(encodeURI(target))
-    return {
-      text,
-      user,
-      context,
-      is_assertion,
-      is_question,
-      is_imperative,
-      is_negative,
-      target,
-      wiki
+    for (const context of contexts)
+    {
+      if (context.objective.includes("assertion")     &&
+          context.objective.includes("single phrase") &&
+          is_good_context(context))
+      {
+        let final_target
+        if (context.subjective)
+          final_target = (context.subjective.includes(target)) ? target : context.subjective
+        else
+        if (target)
+          final_target = target
+
+        if (final_target)
+        {
+          const verb = (await analyze(context.message, "verb"       ))["value"]
+          const prep = (await analyze(context.message, "preposition"))["value"]
+
+          return {
+            text,
+            user,
+            context,
+            is_assertion: context.objective.includes("assertion"),
+            is_question: context.objective.includes("question"),
+            is_imperative: context.objective.includes("imperative"),
+            is_negative,
+            response: `Why should anyone believe you ${verb} ${prep} ${final_target}?`,
+            target: final_target,
+            wiki: await fetch_wiki(encodeURI(final_target))
+          }
+        }
+      }
     }
+
+    return { text, error: "Failed to compute strategy" }
   }
   //--------------
   async function fetch_users()
