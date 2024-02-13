@@ -67,6 +67,7 @@ class KCEFClient : public CefClient,
                            const CefString& title);
 
   void Visit(const CefString& s) final;
+  void Scroll() const;
 
   const bool use_views_;
 
