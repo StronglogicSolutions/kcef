@@ -199,13 +199,10 @@ void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
 #endif  // defined(CEF_X11)
 }
 
-void KCEFClient::Scroll() const
+void KCEFClient::scroll() const
 {
   browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->ExecuteJavaScript(
-    "window.scrollBy({\
-     top: 2400,\
-     left: 0,\
-     \"behavior: \"instant\"})", "", 1
+    "window.scrollBy({ top: 16000, left: 0 })", "", 1
   );
 }
 

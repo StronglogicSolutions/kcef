@@ -72,7 +72,13 @@ controller::controller(kcef_interface* kcef)
       for (const auto& arg : args)
         LOG(INFO) << "Arg: " << arg;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
-    }
+    },
+    },
+    { "sentinel:info",  [this](auto args)                                          // LOAD URL
+    {
+      LOG(INFO) << "Handling scroll test";
+      kcef_->scroll();
+    },
     }
   })
 {
