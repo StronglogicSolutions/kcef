@@ -199,6 +199,13 @@ void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
 #endif  // defined(CEF_X11)
 }
 
+void KCEFClient::scroll() const
+{
+  browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->ExecuteJavaScript(
+    "window.scrollBy({ top: 16000, left: 0 })", "", 1
+  );
+}
+
 void KCEFClient::set_url(const std::string& url) const
 {
   LOG(INFO) << "Setting URL to " << url;
