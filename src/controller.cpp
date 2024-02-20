@@ -66,7 +66,7 @@ controller::controller(kcef_interface* kcef)
       enqueue(args.at(0));
     }
     },
-    { "sentinel:analysis",  [this](auto args)                                     // LOAD URL
+    { "sentinel:analysis",  [this](auto args)                                    // ANALYSIS RESULTS
     {
       LOG(INFO) << "handling analysis results. Printing args";
       for (const auto& arg : args)
@@ -74,10 +74,10 @@ controller::controller(kcef_interface* kcef)
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
     },
     },
-    { "sentinel:info",  [this](auto args)                                          // LOAD URL
+    { "sentinel:info",  [this](auto args)                                        // ANALYZE REQUEST
     {
       LOG(INFO) << "Handling scroll test";
-      kcef_->scroll();
+      kcef_->analyze();
     },
     }
   })
@@ -101,6 +101,7 @@ controller::controller(kcef_interface* kcef)
       return;
     }
 
+    // TODO: set app_active false?
     const auto process = kiq::process({"./app.sh", filename, url}, 0);          // ANALYZE
     if (process.has_error())
       LOG(ERROR) << "NodeJS app failed: " << process.get_error();
