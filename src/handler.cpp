@@ -28,6 +28,19 @@ std::string GetDataURI(const std::string& data, const std::string& mime_type) {
 
 }  // namespace
 
+static
+std::string get_scroll_command(uint32_t y)
+{
+  switch (y)
+  {
+  case 0:
+    return "window.scroll({ top: 0, left: 0 })";
+  break;
+  default:
+    return "window.scrollBy({ top: " + std::to_string(y) + ", left: 0 })";
+  }
+}
+
 KCEFClient::KCEFClient(bool use_views)
 : use_views_(use_views),
   is_closing_(false)
@@ -198,14 +211,20 @@ void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
   XStoreName(display, browser->GetHost()->GetWindowHandle(), titleStr.c_str());
 #endif  // defined(CEF_X11)
 }
-
-void KCEFClient::scroll() const
+//------------------------------------------------------------------
+void KCEFClient::analyze()
+{
+  scroll();
+  query("get");
+}
+//------------------------------------------------------------------
+void KCEFClient::scroll(uint32_t y) const
 {
   browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->ExecuteJavaScript(
-    "window.scrollBy({ top: 16000, left: 0 })", "", 1
+    get_scroll_command(y), "", 1
   );
 }
-
+//------------------------------------------------------------------
 void KCEFClient::set_url(const std::string& url) const
 {
   LOG(INFO) << "Setting URL to " << url;
@@ -236,4 +255,5 @@ void KCEFClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
   LOG(INFO) << "OnLoadEnd code: " << code;
   if (code == 200)
     query("get");
+  scroll(0);
 }

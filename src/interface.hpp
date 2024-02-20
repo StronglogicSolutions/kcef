@@ -12,5 +12,6 @@ class kcef_interface
   virtual void        set_url (const std::string&) const = 0;
   virtual void        query   (const std::string&)       = 0;
   virtual std::string get_url ()                   const = 0;
-  virtual void        scroll  ()                   const = 0;
+  virtual void        scroll  (uint32_t)           const = 0;
+  virtual void        analyze ()                         = 0;
 };

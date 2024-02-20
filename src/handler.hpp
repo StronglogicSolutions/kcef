@@ -19,8 +19,9 @@ class KCEFClient : public CefClient,
   void set_url(const std::string&) const final;
   void query  (const std::string&)       final;
   void init   (src_cb_t);
-  void scroll ()                   const final;
+  void scroll (uint32_t y = 16000) const final;
   std::string get_url()            const final;
+  void analyze()                         final;
 
   // Provide access to the single global instance of this object.
   static KCEFClient* GetInstance();
