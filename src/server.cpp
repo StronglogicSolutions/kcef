@@ -75,6 +75,7 @@ ipc_msg_t server::wait_and_pop()
   if (!msg)
     LOG(ERROR) << "Popped null message";
   else
+  if (msg->type() > 0x01)
     LOG(INFO) << "Popping message: " << msg->to_string();
 
   return msg;
