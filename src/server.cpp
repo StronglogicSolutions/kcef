@@ -2,10 +2,10 @@
 #include "include/base/cef_logging.h"
 
 namespace kiq {
-static const char* RX_ADDR{"tcp://0.0.0.0:28479"};
-static const char* TX_ADDR{"tcp://0.0.0.0:28474"};
-static const char* AX_ADDR{"tcp://0.0.0.0:28480"};
-
+static const char*       RX_ADDR  {"tcp://0.0.0.0:28479"};
+static const char*       TX_ADDR  {"tcp://0.0.0.0:28474"};
+static const char*       AX_ADDR  {"tcp://0.0.0.0:28480"};
+static const std::string PEER_NAME{"sentinel"};
 auto ipc_log = [](const auto* log)
 {
   LOG(INFO) << "IPC - " << log;
@@ -36,14 +36,8 @@ server::server()
   tx_.connect(TX_ADDR);
   ax_.connect(AX_ADDR);
   kiq::set_log_fn(ipc_log);
-  run();
-}
-//----------------------------------
-server::~server()
-{
-  active_ = false;
-  if (fut_.valid())
-    fut_.wait();
+
+  tx_.send(zmq::message_t(PEER_NAME.begin(), PEER_NAME.end()));
 }
 //----------------------------------
 void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
@@ -53,22 +47,14 @@ void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
 //----------------------------------
 void server::run()
 {
-  fut_ = std::async(std::launch::async,
-  [this]
+  if (!out_.empty())
   {
-    while (active_)
-    {
-      if (!out_.empty())
-      {
-        LOG(INFO) << "Server has outgoing message";
-        auto&& msg = out_.front();
-        send_ipc_message(std::move(msg));
-        LOG(INFO) << "Message sent";
-        out_.pop_front();
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    }
-  });
+    LOG(INFO) << "Server has outgoing message";
+    auto&& msg = out_.front();
+    send_ipc_message(std::move(msg));
+    LOG(INFO) << "Message sent";
+    out_.pop_front();
+  }
 }
 //----------------------------------
 ipc_msg_t server::wait_and_pop()
@@ -89,7 +75,9 @@ ipc_msg_t server::wait_and_pop()
   if (!msg)
     LOG(ERROR) << "Popped null message";
   else
+  if (msg->type() > 0x01)
     LOG(INFO) << "Popping message: " << msg->to_string();
+
   return msg;
 }
 //----------------------------------
@@ -143,13 +131,15 @@ void server::recv(bool tx)
 
   while (more_flag && sock.recv(msg))
   {
-    LOG(INFO) << "Received frame: " << msg.to_string_view();
     buffer.push_back({static_cast<char*>(msg.data()), static_cast<char*>(msg.data()) + msg.size()});
     more_flag = sock.get(zmq::sockopt::rcvmore);
   }
 
   LOG(INFO) << "Received IPC message";
-  process_message(DeserializeIPCMessage(std::move(buffer)));
+  if (buffer.size() > 1)
+    process_message(DeserializeIPCMessage(std::move(buffer)));
+  else
+    LOG(INFO) << "Single frame: " << msg.to_string_view();
 }
 //----------------------------------
 void server::enqueue_ipc(kiq::ipc_message::u_ipc_msg_ptr msg)

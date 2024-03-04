@@ -11,18 +11,19 @@ class server : public kiq::IPCHandlerInterface
 {
  public:
   server();
-  ~server() final;
-  void      process_message(kiq::ipc_message::u_ipc_msg_ptr msg) final;
-  ipc_msg_t wait_and_pop();
+  ~server() final = default;
+
+  void      process_message  (kiq::ipc_message::u_ipc_msg_ptr msg) final;
+  ipc_msg_t wait_and_pop     ();
   void      set_reply_pending(bool pending = true);
-  void      enqueue_ipc(kiq::ipc_message::u_ipc_msg_ptr msg);
+  void      enqueue_ipc      (kiq::ipc_message::u_ipc_msg_ptr msg);
+  void      run              ();
 
  protected:
-  zmq::socket_t& socket() final;
+  zmq::socket_t& socket () final;
   void           on_done() final;
 
  private:
-  void    run ();
   uint8_t poll();
   void    recv(bool tx = false);
   //----------------------------------
@@ -35,8 +36,6 @@ class server : public kiq::IPCHandlerInterface
   zmq::socket_t         ax_;
   messages_t            msgs_;
   messages_t            out_;
-  std::future<void>     fut_;
   bool                  reply_ {false};
-  bool                  active_{true};
 };
 } // ns kiq
