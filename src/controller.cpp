@@ -23,6 +23,7 @@ escape_s(const std::string& s)
 controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
   dispatch_({
+    {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg) { (void)("NOOP"); }},
     {kiq::constants::IPC_KIQ_MESSAGE, [this](auto msg) // IPC MSG HANDLER
     {
       json_t     data = json_t::parse(static_cast<kiq_msg_t*>(msg.get())->payload(), nullptr, false);
