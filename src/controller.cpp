@@ -52,14 +52,14 @@ controller::controller(kcef_interface* kcef)
     }},
     {kiq::constants::IPC_OK_TYPE, [this](auto msg) { LOG(INFO) << "Received OK: " << msg->to_string(); }}}), // REPLY OK
   kiq_handler({
-    { "sentinel:messages", [this](auto args) { enqueue(args.at(1));        }},   // KIQ REQUESTS
-    { "sentinel:query",    [this](auto args)                                     // FIND SOMETHING TO ANALYZE
+    { "messages", [this](auto args) { enqueue(args.at(1));        }},   // KIQ REQUESTS
+    { "query",    [this](auto args)                                     // FIND SOMETHING TO ANALYZE
     {
       app_active_ = true;
       kcef_->query  (args.at(1));
     }
     },
-    { "sentinel:loadurl",  [this](auto args)                                     // LOAD URL
+    { "loadurl",  [this](auto args)                                     // LOAD URL
     {
       LOG(INFO) << "handling loadurl";
       app_waiting_ = true;
@@ -67,7 +67,7 @@ controller::controller(kcef_interface* kcef)
       enqueue(args.at(0));
     }
     },
-    { "sentinel:analysis",  [this](auto args)                                    // ANALYSIS RESULTS
+    { "analysis",  [this](auto args)                                    // ANALYSIS RESULTS
     {
       LOG(INFO) << "handling analysis results. Printing args";
       for (const auto& arg : args)
@@ -75,7 +75,7 @@ controller::controller(kcef_interface* kcef)
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
     },
     },
-    { "sentinel:info",  [this](auto args)                                        // ANALYZE REQUEST
+    { "info",  [this](auto args)                                        // ANALYZE REQUEST
     {
       LOG(INFO) << "Handling scroll test";
       kcef_->analyze();
