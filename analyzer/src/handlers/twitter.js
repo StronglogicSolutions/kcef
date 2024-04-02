@@ -107,12 +107,13 @@ async function create_analysis(nlp, doc)
       select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
       select[i].target    = identify_target(select[i])
       select[i].result    = "computed"
+      console.log('Candidate: ', select[i])
     }
   }
   //--------------
   async function formulate_strategy(data)
   {
-
+    console.log('Formluating strategy for agitator: ', data.user)
     const is_good_context = context =>
     {
       if (context.message.length > 10)
@@ -206,6 +207,7 @@ async function create_analysis(nlp, doc)
   {
     for (let i = 0; i < select.length; i++)
     {
+      console.log('Fetching user')
       await controller.send(user_url(select[i].username))
       const received = await controller.recv()
       select[i].user = await read_user(received, select[i].username)

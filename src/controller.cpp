@@ -61,7 +61,7 @@ controller::controller(kcef_interface* kcef)
     },
     { "loadurl", [this](auto args)                                     // LOAD URL
     {
-      LOG(INFO) << "handling loadurl";
+      LOG(INFO) << "handling loadurl request from analyzer. App will wait for source and then send back";
       app_waiting_ = true;
       kiq_.set_reply_pending();
       enqueue(args.at(0));
@@ -83,7 +83,7 @@ controller::controller(kcef_interface* kcef)
     }
   })
 {
-  kcef_->init([this](const std::string& s)                                       // QUERY CALLBACK
+  kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
     const auto url      = kcef_->get_url();
     const auto filename = kutils::get_unix_tstring() + ".html";
@@ -92,22 +92,28 @@ controller::controller(kcef_interface* kcef)
     LOG(INFO) << "Saved " << url << " to " << filename;
 
     if (!app_waiting_ && !app_active_)
-      return;
-
-    if (app_waiting_)
     {
-      LOG(INFO) << "app was waiting";
+      LOG(INFO) << "App not waiting an not active";
+      return;
+    }
+
+    if (app_waiting_) // Analyzer requests additional sources before returning result
+    {
+      LOG(INFO) << "App was waiting for source from new URL. Sending back to analyzer.";
       app_waiting_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url"));
       return;
     }
 
-    // TODO: set app_active false?
+    LOG(INFO) << "App is active. Will process";
+
     const auto process = kiq::process({"./app.sh", filename, url}, 0);          // ANALYZE
     if (process.has_error())
-      LOG(ERROR) << "NodeJS app failed: " << process.get_error();
+      LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
     else
       LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
+
+    app_active_ = false; // App becomes active after reciving `query` IPC command
 
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
   });
@@ -117,6 +123,8 @@ controller::state controller::work()
 {
   try
   {
+    kiq_.run();
+
     if (auto msg = kiq_.wait_and_pop())
       dispatch_.at(msg->type())(std::move(msg));
 

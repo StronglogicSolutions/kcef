@@ -135,7 +135,6 @@ void server::recv(bool tx)
     more_flag = sock.get(zmq::sockopt::rcvmore);
   }
 
-  LOG(INFO) << "Received IPC message";
   if (buffer.size() > 1)
     process_message(DeserializeIPCMessage(std::move(buffer)));
   else
@@ -144,7 +143,7 @@ void server::recv(bool tx)
 //----------------------------------
 void server::enqueue_ipc(kiq::ipc_message::u_ipc_msg_ptr msg)
 {
-  LOG(INFO) << "enqueueing outgoing IPC message";
+  LOG(INFO) << "enqueueing outgoing IPC message: " << msg->to_string();
   out_.emplace_back(std::move(msg));
 }
 } // ns kiq
