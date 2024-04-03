@@ -11,11 +11,12 @@ auto ipc_log = [](const auto* log)
   LOG(INFO) << "IPC - " << log;
 };
 
-server::server()
+server::server(ipc_dispatch_t dispatch)
 : context_{1},
   rx_(context_, ZMQ_ROUTER),
   tx_(context_, ZMQ_DEALER),
-  ax_(context_, ZMQ_DEALER)
+  ax_(context_, ZMQ_DEALER),
+  dispatch_(dispatch)
 {
   rx_.set(zmq::sockopt::linger, 0);
   tx_.set(zmq::sockopt::linger, 0);
@@ -37,7 +38,7 @@ server::server()
   ax_.connect(AX_ADDR);
   kiq::set_log_fn(ipc_log);
 
-  tx_.send(zmq::message_t(PEER_NAME.begin(), PEER_NAME.end()));
+  enqueue_ipc(std::make_unique<status_check>());
 }
 //----------------------------------
 void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
@@ -47,7 +48,7 @@ void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
 //----------------------------------
 void server::run()
 {
-  if (!out_.empty())
+  if (!out_.empty())                         // TX
   {
     LOG(INFO) << "Server has outgoing message";
     auto&& msg = out_.front();
@@ -55,6 +56,9 @@ void server::run()
     LOG(INFO) << "Message sent";
     out_.pop_front();
   }
+
+  if (auto msg = wait_and_pop())             // RX
+    dispatch_.at(msg->type())(std::move(msg));
 }
 //----------------------------------
 ipc_msg_t server::wait_and_pop()
@@ -75,7 +79,7 @@ ipc_msg_t server::wait_and_pop()
   if (!msg)
     LOG(ERROR) << "Popped null message";
   else
-  if (msg->type() > 0x01)
+  if (msg->type() != 0x01)
     LOG(INFO) << "Popping message: " << msg->to_string();
 
   return msg;
@@ -135,15 +139,14 @@ void server::recv(bool tx)
     more_flag = sock.get(zmq::sockopt::rcvmore);
   }
 
-  if (buffer.size() > 1)
-    process_message(DeserializeIPCMessage(std::move(buffer)));
-  else
-    LOG(INFO) << "Single frame: " << msg.to_string_view();
+  process_message(DeserializeIPCMessage(std::move(buffer)));
 }
 //----------------------------------
 void server::enqueue_ipc(kiq::ipc_message::u_ipc_msg_ptr msg)
 {
-  LOG(INFO) << "enqueueing outgoing IPC message: " << msg->to_string();
+  const auto& input = msg->to_string();
+  const auto& msg_s = input.size() > 500 ? input.substr(500) : input;
+  LOG(INFO) << "enqueueing outgoing IPC message: " << msg_s;
   out_.emplace_back(std::move(msg));
 }
 } // ns kiq

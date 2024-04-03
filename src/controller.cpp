@@ -22,7 +22,8 @@ escape_s(const std::string& s)
 
 controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
-  dispatch_({
+  kiq_({
+    {kiq::constants::IPC_STATUS,         [this](auto msg) { LOG(INFO) << "Received IPC status"; }},
     {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg) { (void)("NOOP"); }},
     {kiq::constants::IPC_KIQ_MESSAGE, [this](auto msg) // IPC MSG HANDLER
     {
@@ -113,7 +114,7 @@ controller::controller(kcef_interface* kcef)
     else
       LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
 
-    app_active_ = false; // App becomes active after reciving `query` IPC command
+    app_active_ = false; // App becomes active after receiving `query` IPC command
 
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
   });
@@ -124,10 +125,6 @@ controller::state controller::work()
   try
   {
     kiq_.run();
-
-    if (auto msg = kiq_.wait_and_pop())
-      dispatch_.at(msg->type())(std::move(msg));
-
     handle_queue();
   }
   catch (const std::exception& e)

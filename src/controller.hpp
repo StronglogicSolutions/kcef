@@ -7,7 +7,6 @@
 class controller
 {
 using payload_t      = std::vector<std::string>;
-using ipc_dispatch_t = std::map<uint8_t, std::function<void(ipc_msg_t)>>;
 using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>>;
 
  public:
@@ -29,7 +28,6 @@ using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>
   void                  enqueue(const std::string& url);
   kcef_interface*       kcef_;
   kiq::server           kiq_;
-  ipc_dispatch_t        dispatch_;
   kiq_handler_t         kiq_handler;
   browse_queue_t        queue_;
   kutils::bucket<1, 5>  bucket_; // REQ/N sec

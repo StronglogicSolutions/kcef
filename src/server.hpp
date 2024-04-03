@@ -4,13 +4,14 @@
 #include <kproto/ipc.hpp>
 
 using ipc_msg_t      = kiq::ipc_message::u_ipc_msg_ptr;
+using ipc_dispatch_t = std::map<uint8_t, std::function<void(ipc_msg_t)>>;
 
 namespace kiq
 {
 class server : public kiq::IPCHandlerInterface
 {
  public:
-  server();
+  server(ipc_dispatch_t);
   ~server() final = default;
 
   void      process_message  (kiq::ipc_message::u_ipc_msg_ptr msg) final;
@@ -37,5 +38,6 @@ class server : public kiq::IPCHandlerInterface
   messages_t            msgs_;
   messages_t            out_;
   bool                  reply_ {false};
+  ipc_dispatch_t        dispatch_;
 };
 } // ns kiq
