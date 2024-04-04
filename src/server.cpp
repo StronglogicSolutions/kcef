@@ -34,11 +34,10 @@ server::server(ipc_dispatch_t dispatch)
   tx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
   ax_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
   rx_.bind   (RX_ADDR);
-  tx_.connect(TX_ADDR);
-  ax_.connect(AX_ADDR);
+
   kiq::set_log_fn(ipc_log);
 
-  enqueue_ipc(std::make_unique<status_check>());
+  connect();
 }
 //----------------------------------
 void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
@@ -46,12 +45,19 @@ void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
   msgs_.push_back(std::move(msg));
 }
 //----------------------------------
+void server::connect()
+{
+  tx_.connect(TX_ADDR);
+  ax_.connect(AX_ADDR);
+  enqueue_ipc(std::make_unique<status_check>());
+}
+//----------------------------------
 void server::run()
 {
   if (!out_.empty())                         // TX
   {
-    LOG(INFO) << "Server has outgoing message";
     auto&& msg = out_.front();
+    LOG(INFO) << "Server has outgoing message of type: " << constants::IPC_MESSAGE_NAMES.at(msg->type());
     send_ipc_message(std::move(msg));
     LOG(INFO) << "Message sent";
     out_.pop_front();
@@ -114,6 +120,7 @@ void server::set_reply_pending(bool pending)
 //----------------------------------
 void server::on_done()
 {
+  LOG(INFO) << "Sent message to " << socket().get(zmq::sockopt::last_endpoint);
   reply_ = false;
 }
 //----------------------------------
@@ -145,7 +152,7 @@ void server::recv(bool tx)
 void server::enqueue_ipc(kiq::ipc_message::u_ipc_msg_ptr msg)
 {
   const auto& input = msg->to_string();
-  const auto& msg_s = input.size() > 500 ? input.substr(500) : input;
+  const auto& msg_s = input.size() > 500 ? input.substr(0, 500) : input;
   LOG(INFO) << "enqueueing outgoing IPC message: " << msg_s;
   out_.emplace_back(std::move(msg));
 }

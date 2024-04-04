@@ -19,6 +19,7 @@ class server : public kiq::IPCHandlerInterface
   void      set_reply_pending(bool pending = true);
   void      enqueue_ipc      (kiq::ipc_message::u_ipc_msg_ptr msg);
   void      run              ();
+  void      connect          ();
 
  protected:
   zmq::socket_t& socket () final;

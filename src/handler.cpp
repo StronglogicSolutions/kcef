@@ -31,14 +31,7 @@ std::string GetDataURI(const std::string& data, const std::string& mime_type) {
 static
 std::string get_scroll_command(uint32_t y)
 {
-  switch (y)
-  {
-  case 0:
-    return "window.scroll({ top: 0, left: 0 })";
-  break;
-  default:
-    return "window.scrollBy({ top: " + std::to_string(y) + ", left: 0 })";
-  }
+  return "window.scrollBy({ top: " + std::to_string(y) + ", left: 0, behavior: 'smooth' })";
 }
 
 KCEFClient::KCEFClient(bool use_views)
