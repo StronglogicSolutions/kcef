@@ -22,7 +22,8 @@ escape_s(const std::string& s)
 
 controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
-  dispatch_({
+  kiq_({
+    {kiq::constants::IPC_STATUS,         [this](auto msg) { LOG(INFO) << "Received IPC status"; kiq_.connect(); }},
     {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg) { (void)("NOOP"); }},
     {kiq::constants::IPC_KIQ_MESSAGE, [this](auto msg) // IPC MSG HANDLER
     {
@@ -55,6 +56,7 @@ controller::controller(kcef_interface* kcef)
     { "message", [this](auto args) { enqueue(args.at(1));        }},   // KIQ REQUESTS
     { "query",   [this](auto args)                                     // FIND SOMETHING TO ANALYZE
     {
+      LOG(INFO) << "Received query. Setting app to active";
       app_active_ = true;
       kcef_->query  (args.at(1));
     }
@@ -85,15 +87,9 @@ controller::controller(kcef_interface* kcef)
 {
   kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
-    const auto url      = kcef_->get_url();
-    const auto filename = kutils::get_unix_tstring() + ".html";
-    kutils::SaveToFile(s, filename);
-
-    LOG(INFO) << "Saved " << url << " to " << filename;
-
     if (!app_waiting_ && !app_active_)
     {
-      LOG(INFO) << "App not waiting an not active";
+      LOG(INFO) << "App not waiting and not active";
       return;
     }
 
@@ -107,13 +103,20 @@ controller::controller(kcef_interface* kcef)
 
     LOG(INFO) << "App is active. Will process";
 
+    const auto url      = kcef_->get_url();
+    const auto filename = kutils::get_unix_tstring() + ".html";
+    kutils::SaveToFile(s, filename);
+
+    LOG(INFO) << "Saved " << url << " to " << filename;
+
     const auto process = kiq::process({"./app.sh", filename, url}, 0);          // ANALYZE
     if (process.has_error())
       LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
     else
       LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
 
-    app_active_ = false; // App becomes active after reciving `query` IPC command
+    LOG(INFO) << "Analysis complete: setting app to inactive";
+    app_active_ = false; // App becomes active after receiving `query` IPC command
 
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
   });
@@ -124,10 +127,6 @@ controller::state controller::work()
   try
   {
     kiq_.run();
-
-    if (auto msg = kiq_.wait_and_pop())
-      dispatch_.at(msg->type())(std::move(msg));
-
     handle_queue();
   }
   catch (const std::exception& e)

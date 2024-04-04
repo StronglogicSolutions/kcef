@@ -25,7 +25,7 @@ async function create_analysis(nlp, doc)
   const data   = []
 
   await controller.start()
-
+  console.log('items', items)
   for (const item of items)
     data.push({ nlp: await nlp.process('en', item.text), username: item.username })
 
@@ -103,8 +103,8 @@ async function create_analysis(nlp, doc)
     for (let i = 0; i < select.length; i++)
     {
       select[i].context   = await analyze(select[i].nlp.utterance, "context"  )
-      select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
-      select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
+      // select[i].emotion   = await analyze(select[i].nlp.utterance, "emotion"  )
+      // select[i].sentiment = await analyze(select[i].nlp.utterance, "sentiment")
       select[i].target    = identify_target(select[i])
       select[i].result    = "computed"
       console.log('Candidate: ', select[i])
@@ -219,6 +219,7 @@ async function create_analysis(nlp, doc)
   await compute_resolutions()
   await fetch_users()
   await controller.send(JSON.stringify(select), "analysis")
+  console.log('Sent analysis')
   return select
 }
 //--------------------------------------------
