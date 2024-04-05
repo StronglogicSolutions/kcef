@@ -98,6 +98,7 @@ controller::controller(kcef_interface* kcef)
       LOG(INFO) << "App was waiting for source from new URL. Sending back to analyzer.";
       app_waiting_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url"));
+      kiq_.set_reply_pending(false);
       return;
     }
 
