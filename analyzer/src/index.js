@@ -1,12 +1,48 @@
 const path                         = require('path')
 const fs                           = require('fs')
+const winston                      = require('winston')
 const { JSDOM                    } = require('jsdom')
 const { dockStart                } = require('@nlpjs/basic')
 const { DomainManager, NluNeural } = require('@nlpjs/nlu')
 const { containerBootstrap       } = require('@nlpjs/core')
 const { LangEn                   } = require('@nlpjs/lang-en')
-const { get_name                 } = require('./utils')
+const { get_name, rotate_files   } = require('./utils')
 const { analyze_tweets           } = require('./handlers/twitter')
+const { stdout }                   = require('process');
+
+
+
+// Create a logger instance
+// const logger = winston.createLogger({
+//   level: 'info', // Adjust the log level as needed
+//   format: winston.format.combine(
+//     winston.format.timestamp(),
+//     winston.format.json()
+//   ),
+//   transports: [
+//     // Log to console
+//     new winston.transports.Console(),
+//     // Log to a file
+//     new winston.transports.File({ filename: 'app.log' })
+//   ]
+// });
+
+// console.log = (...args) => {
+//   logger.info(...args);
+// }
+// Define the file path for logging
+const logFilePath = path.join(__dirname, 'console.log');
+
+// Override console.log to capture and write logs to a file
+const originalConsoleLog = console.log;
+console.log = function(...args) {
+  const logMessage = args.join(' ');
+  // Write log message to file
+  fs.appendFileSync(logFilePath, logMessage + '\n');
+  // Call the original console.log function to print to console
+  originalConsoleLog.apply(console, args);
+};
+
 const dockstart   = dockStart
 const file_path   = process.argv[2]
 const url         = process.argv[3]
@@ -31,6 +67,7 @@ const handlers =
   "twitter": async (doc) =>
   {
     const result = JSON.stringify(await analyze_tweets(nlp, doc))
+    await rotate_files()
     fs.writeFileSync('./analysis.json', result)
     console.log(result)
   }
