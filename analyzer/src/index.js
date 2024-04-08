@@ -1,6 +1,5 @@
 const path                         = require('path')
 const fs                           = require('fs')
-const winston                      = require('winston')
 const { JSDOM                    } = require('jsdom')
 const { dockStart                } = require('@nlpjs/basic')
 const { DomainManager, NluNeural } = require('@nlpjs/nlu')

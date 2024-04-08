@@ -66,38 +66,33 @@ const fetch_wiki = async (query) =>
 //---------------------------------------------
 async function rotate_files()
 {
-  const directory = './'; // Specify your directory here
+  const directory = './'
   const filename = 'analysis.json';
 
-  const filePath = path.join(directory, filename);
+  const filepath = path.join(directory, filename);
 
   try
   {
-    // Step 1: Check if the file exists
-    await fs.access(filePath, fs.constants.F_OK);
+    await fs.access(filepath, fs.constants.F_OK);
     console.log(`${filename} exists in the directory.`);
 
-    // Step 2: Get the last modified time
-    const stats = await fs.stat(filePath);
-    const lastModifiedTime = stats.mtime.getTime();
-    const newFilename = `analysis${lastModifiedTime}.json`;
-    const newFilePath = path.join(directory, newFilename);
+    const stats         = await fs.stat(filepath);
+    const last_modified = stats.mtime.getTime();
+    const new_filename  = `analysis${last_modified}.json`;
+    const new_filepath  = path.join(directory, new_filename);
 
-    // Step 3: Resave the file with new name
-    await fs.copyFile(filePath, newFilePath);
-    console.log(`${filename} has been copied as ${newFilename}`);
+    await fs.copyFile(filepath, new_filepath);
+    console.log(`${filename} has been copied as ${new_filename}`);
   }
   catch (err)
   {
     if (err.code === 'ENOENT')
-    {
       console.error(`${filename} does not exist in the directory.`);
-    } else
-    {
+    else
       console.error('An error occurred:', err);
-    }
   }
 }
+
 module.exports.analyze = analyze
 module.exports.get_name = get_name
 module.exports.fetch_wiki = fetch_wiki
