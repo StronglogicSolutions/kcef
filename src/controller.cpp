@@ -1,7 +1,6 @@
 #include "controller.hpp"
 #include <nlohmann/json.hpp>
 #include "include/base/cef_logging.h"
-#include <process.hpp>
 
 using json_t    = nlohmann::json;
 using kiq_msg_t = kiq::kiq_message;
@@ -57,7 +56,8 @@ controller::controller(kcef_interface* kcef)
     { "query",   [this](auto args)                                     // FIND SOMETHING TO ANALYZE
     {
       LOG(INFO) << "Received query. Setting app to active";
-      app_active_ = true;
+      app_active_  = true;
+      app_waiting_ = false;
       kcef_->query  (args.at(1));
     }
     },
@@ -74,6 +74,8 @@ controller::controller(kcef_interface* kcef)
       LOG(INFO) << "handling analysis results. Printing args";
       for (const auto& arg : args)
         LOG(INFO) << "Arg: " << arg;
+      kiq_.set_reply_pending(false);
+      app_active_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
     },
     },
@@ -87,6 +89,7 @@ controller::controller(kcef_interface* kcef)
 {
   kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
+    LOG(INFO) << "controller::kcef_::init() callback";
     if (!app_waiting_ && !app_active_)
     {
       LOG(INFO) << "App not waiting and not active";
@@ -96,9 +99,7 @@ controller::controller(kcef_interface* kcef)
     if (app_waiting_) // Analyzer requests additional sources before returning result
     {
       LOG(INFO) << "App was waiting for source from new URL. Sending back to analyzer.";
-      app_waiting_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url"));
-      kiq_.set_reply_pending(false);
       return;
     }
 
@@ -110,14 +111,14 @@ controller::controller(kcef_interface* kcef)
 
     LOG(INFO) << "Saved " << url << " to " << filename;
 
-    const auto process = kiq::process({"./app.sh", filename, url}, 0);          // ANALYZE
-    if (process.has_error())
-      LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
-    else
-      LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
-
-    LOG(INFO) << "Analysis complete: setting app to inactive";
-    app_active_ = false; // App becomes active after receiving `query` IPC command
+    proc_future_ = std::async(std::launch::async, [this, &url, &filename]
+    {
+      const auto process = kiq::process({"./app.sh", filename, url}, 240);  // ANALYZE
+      if (process.has_error())
+        LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
+      else
+        LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
+    });
 
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
   });
@@ -129,6 +130,9 @@ controller::state controller::work()
   {
     kiq_.run();
     handle_queue();
+
+    if (!app_active_ && proc_future_.valid())
+      proc_future_.wait();
   }
   catch (const std::exception& e)
   {
