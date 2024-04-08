@@ -23,14 +23,21 @@ async function analyze(text, command)
 
   process.stderr.on('data', (data) =>
   {
-    console.error("Error forking process", data.toString())
+    console.log("Error forking process", data.toString())
     ret = data
     def.r
   })
 
   await def.p
   console.log('forked process returned', ret.toString())
-  return JSON.parse(ret.toString())
+  try
+  {
+    return JSON.parse(ret.toString())
+  }
+  catch (e)
+  {
+    return { value: "" }
+  }
 }
 //--------------------------------------------
 function get_name(url)
