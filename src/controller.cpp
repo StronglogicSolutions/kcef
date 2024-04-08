@@ -56,7 +56,8 @@ controller::controller(kcef_interface* kcef)
     { "query",   [this](auto args)                                     // FIND SOMETHING TO ANALYZE
     {
       LOG(INFO) << "Received query. Setting app to active";
-      app_active_ = true;
+      app_active_  = true;
+      app_waiting_ = false;
       kcef_->query  (args.at(1));
     }
     },
@@ -74,6 +75,7 @@ controller::controller(kcef_interface* kcef)
       for (const auto& arg : args)
         LOG(INFO) << "Arg: " << arg;
       kiq_.set_reply_pending(false);
+      app_active_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
     },
     },
@@ -97,7 +99,6 @@ controller::controller(kcef_interface* kcef)
     if (app_waiting_) // Analyzer requests additional sources before returning result
     {
       LOG(INFO) << "App was waiting for source from new URL. Sending back to analyzer.";
-      app_waiting_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url"));
       return;
     }
@@ -112,17 +113,12 @@ controller::controller(kcef_interface* kcef)
 
     proc_future_ = std::async(std::launch::async, [this, &url, &filename]
     {
-      process_ = kiq::process({"./app.sh", filename, url}, 200);  // ANALYZE
+      const auto process = kiq::process({"./app.sh", filename, url}, 240);  // ANALYZE
+      if (process.has_error())
+        LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
+      else
+        LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
     });
-
-    // if (process.has_error())
-    //   LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
-    // else
-    //   LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
-
-    LOG(INFO) << "Analysis complete: setting app to inactive";
-    app_active_ = false; // App becomes active after receiving `query` IPC command TODO: this doesn't make sense anymore
-
 
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
   });
@@ -135,17 +131,7 @@ controller::state controller::work()
     kiq_.run();
     handle_queue();
 
-    if (process_.has_error())
-      LOG(ERROR) << "NodeJS app failed: "  << process_.get_error();
-    else
-    if (!process_.has_work() && process_.is_ready())
-    {
-      LOG(INFO)  << "NodeJS app stdout:\n" << process_.get().output;
-      LOG(INFO)  << "Termination code: " << process_.exit_code();
-      process_ = kiq::process{};
-    }
-
-    if (proc_future_.valid())
+    if (!app_active_ && proc_future_.valid())
       proc_future_.wait();
   }
   catch (const std::exception& e)

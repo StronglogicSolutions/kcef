@@ -34,6 +34,5 @@ using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>
   kutils::bucket<1, 5>  bucket_; // REQ/N sec
   bool                  app_waiting_{false};
   bool                  app_active_{false};
-  kiq::process          process_;
   std::future<void>     proc_future_;
 };
