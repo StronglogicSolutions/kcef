@@ -2,3 +2,8 @@
 **/kcef_models.nlp
 **/corpus.json
 **/console.log
+**/analysis.json
+**/.vscode
+tags
+**/tokenized_message.txt
+build

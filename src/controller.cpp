@@ -113,11 +113,18 @@ controller::controller(kcef_interface* kcef)
 
     proc_future_ = std::async(std::launch::async, [this, &url, &filename]
     {
-      const auto process = kiq::process({"./app.sh", filename, url}, 240);  // ANALYZE
+      auto process = kiq::process({"./app.sh", filename, url}, 240);  // ANALYZE
+      while (process.has_work())
+      {
+        LOG(INFO) << "process has work";
+        process.do_work();
+      }
+
+      const auto result = process.get();
+
       if (process.has_error())
         LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
-      else
-        LOG(INFO)  << "NodeJS app stdout:\n" << process.get().output;
+      LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
     });
 
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
