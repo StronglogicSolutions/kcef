@@ -14,20 +14,13 @@ public:
     int screen = DefaultScreen(display_);
     Window root = RootWindow(display_, screen);
 
-    // Create a simple window
     window_ = XCreateSimpleWindow(display_, root, 0, 0, 600, 400, 0,
                                   BlackPixel(display_, screen), WhitePixel(display_, screen));
 
-    // Set window title
     XStoreName(display_, window_, "KCEF Sentinel");
-
-    // Select events to listen for
     XSelectInput(display_, window_, StructureNotifyMask);
-
-    // Display the window
     XMapWindow(display_, window_);
 
-    // Wait for MapNotify event
     XEvent event;
     do
     {
