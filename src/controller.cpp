@@ -52,7 +52,12 @@ controller::controller(kcef_interface* kcef)
     }},
     {kiq::constants::IPC_OK_TYPE, [this](auto msg) { LOG(INFO) << "Received OK: " << msg->to_string(); }}}), // REPLY OK
   kiq_handler({
-    { "message", [this](auto args) { enqueue(args.at(1));        }},   // KIQ REQUESTS
+    { "message", [this](auto args)                                     // KIQ REQUESTS
+    {
+      kcef_->focus();
+      enqueue(args.at(1));
+    }
+    },
     { "query",   [this](auto args)                                     // FIND SOMETHING TO ANALYZE
     {
       LOG(INFO) << "Received query. Setting app to active";
@@ -140,6 +145,8 @@ controller::state controller::work()
 
     if (!app_active_ && proc_future_.valid())
       proc_future_.wait();
+
+    kcef_->run();
   }
   catch (const std::exception& e)
   {

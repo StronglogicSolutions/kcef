@@ -34,9 +34,9 @@ std::string get_scroll_command(uint32_t y)
   return "window.scrollBy({ top: " + std::to_string(y) + ", left: 0, behavior: 'smooth' })";
 }
 
-KCEFClient::KCEFClient(bool use_views)
-: use_views_(use_views),
-  is_closing_(false)
+KCEFClient::KCEFClient()
+: is_closing_(false),
+  window_(cef_get_xdisplay())
 {
   DCHECK(!g_instance);
   g_instance = this;
@@ -59,21 +59,7 @@ KCEFClient* KCEFClient::GetInstance() {
 void KCEFClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
                                   const CefString& title) {
   CEF_REQUIRE_UI_THREAD();
-
-  if (use_views_) {
-    // Set the title of the window using the Views framework.
-    CefRefPtr<CefBrowserView> browser_view =
-        CefBrowserView::GetForBrowser(browser);
-    if (browser_view) {
-      CefRefPtr<CefWindow> window = browser_view->GetWindow();
-      if (window) {
-        window->SetTitle(title);
-      }
-    }
-  } else if (!IsChromeRuntimeEnabled()) {
-    // Set the title of the window using platform APIs.
     PlatformTitleChange(browser, title);
-  }
 }
 
 void KCEFClient::OnAfterCreated(CefRefPtr<CefBrowser> browser)
@@ -234,6 +220,13 @@ std::string KCEFClient::get_url() const
   return browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->GetURL().ToString();
 }
 
+void KCEFClient::focus()
+{
+  LOG(INFO) << "Bringing window to front and focusing";
+
+  window_.focus();
+}
+
 void KCEFClient::Visit(const CefString& s)
 {
   current_source_ = s.ToString();
@@ -249,4 +242,16 @@ void KCEFClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
   if (code == 200)
     query("get");
   scroll(0);
+}
+
+void
+KCEFClient::run ()
+{
+  window_.run();
+}
+
+unsigned long
+KCEFClient::get_window() const
+{
+  return window_.value();
 }
