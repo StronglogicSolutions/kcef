@@ -84,35 +84,23 @@ void SimpleApp::OnContextInitialized()
   CefRefPtr<CefCommandLine> command_line =
       CefCommandLine::GetGlobalCommandLine();
 
-  const bool use_views = command_line->HasSwitch("use-views");
-
-  CefRefPtr<KCEFClient> handler(new KCEFClient(use_views));
-  CefBrowserSettings       browser_settings;
+  CefRefPtr<KCEFClient> handler(new KCEFClient);
+  CefBrowserSettings    browser_settings;
   browser_settings.javascript = STATE_ENABLED;
 
   std::string url = command_line->GetSwitchValue("url");
   if (url.empty())
     url = "http://www.google.com";
 
-  if (use_views)
-  {
-    // Create the BrowserView.
-    CefRefPtr<CefBrowserView> browser_view = CefBrowserView::CreateBrowserView(
-        handler, url, browser_settings, nullptr, nullptr,
-        new SimpleBrowserViewDelegate());
 
-    // Create the Window. It will show itself after creation.
-    CefWindow::CreateTopLevelWindow(new SimpleWindowDelegate(browser_view));
-  }
-  else
-  {
     // Information used when creating the native window.
     CefWindowInfo window_info;
+    window_info.SetAsChild(handler->get_window(), CefRect{0, 0, 0, 0});
+
 
     // Create the first browser window.
     CefBrowserHost::CreateBrowser(window_info, handler, url, browser_settings,
                                   nullptr, nullptr);
-  }
 }
 
 CefRefPtr<CefClient> SimpleApp::GetDefaultClient()
