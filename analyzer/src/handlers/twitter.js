@@ -23,8 +23,14 @@ async function create_analysis(nlp, doc)
 
   let   select = []
   const data   = []
+  try
+  {
+    await controller.start()
+  } catch (error) {
+    console.error('Failed to start controller.', error)
+    process.exit(1)
+  }
 
-  await controller.start()
   console.log('items', items)
   for (const item of items)
     data.push({ nlp: await nlp.process('en', item.text), username: item.username })
@@ -127,6 +133,7 @@ async function create_analysis(nlp, doc)
         }
         return (hash_count < (0.8 * words.length))
       }
+      console.log('Rejected context due to too many hashtags')
       return false
     }
 

@@ -33,7 +33,7 @@ std::string get_scroll_command(uint32_t y)
 {
   return "window.scrollBy({ top: " + std::to_string(y) + ", left: 0, behavior: 'smooth' })";
 }
-
+//---------------------------------------------------------------------------
 KCEFClient::KCEFClient()
 : is_closing_(false),
   window_(cef_get_xdisplay())
@@ -41,47 +41,50 @@ KCEFClient::KCEFClient()
   DCHECK(!g_instance);
   g_instance = this;
 }
-
-KCEFClient::~KCEFClient() {
+//---------------------------------------------------------------------------
+KCEFClient::~KCEFClient()
+{
   g_instance = nullptr;
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::init(src_cb_t cb)
 {
   cb_ = cb;
 }
 
 // static
-KCEFClient* KCEFClient::GetInstance() {
+//---------------------------------------------------------------------------
+KCEFClient* KCEFClient::GetInstance()
+{
   return g_instance;
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
-                                  const CefString& title) {
+                               const CefString&      title)
+{
   CEF_REQUIRE_UI_THREAD();
     PlatformTitleChange(browser, title);
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::OnAfterCreated(CefRefPtr<CefBrowser> browser)
 {
   CEF_REQUIRE_UI_THREAD();
   browsers_.insert_or_assign(DEFAULT_KCEF_ID, browser);
+  window_.set_cef(browsers_.at(DEFAULT_KCEF_ID)->GetHost()->GetWindowHandle());
 }
-
-bool KCEFClient::DoClose(CefRefPtr<CefBrowser> browser) {
-  CEF_REQUIRE_UI_THREAD()
-  ;
+//---------------------------------------------------------------------------
+bool KCEFClient::DoClose(CefRefPtr<CefBrowser> browser)
+{
+  CEF_REQUIRE_UI_THREAD();
 
   if (browsers_.size() == 1)
-    // Set a flag to indicate that the window close should be allowed.
     is_closing_ = true;
 
-  // Allow the close. For windowed browsers this will result in the OS close
-  // event being sent.
   return false;
 }
-
-void KCEFClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
+//---------------------------------------------------------------------------
+void KCEFClient::OnBeforeClose(CefRefPtr<CefBrowser> browser)
+{
   CEF_REQUIRE_UI_THREAD();
 
   // Remove from the list of existing browsers.
@@ -98,25 +101,22 @@ void KCEFClient::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   if (browsers_.empty())
     CefQuitMessageLoop();
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::OnLoadError(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
                                 ErrorCode errorCode,
                                 const CefString& errorText,
-                                const CefString& failedUrl) {
+                                const CefString& failedUrl)
+{
   CEF_REQUIRE_UI_THREAD();
 
-  // Allow Chrome to show the error page.
-  if (IsChromeRuntimeEnabled()) {
+  if (IsChromeRuntimeEnabled()) // Allow Chrome to show the error page.
     return;
-  }
 
-  // Don't display an error for downloaded files.
-  if (errorCode == ERR_ABORTED) {
+
+  if (errorCode == ERR_ABORTED) // Don't display an error for downloaded files.
     return;
-  }
 
-  // Display a load error message using a data: URI.
   std::stringstream ss;
   ss << "<html><body bgcolor=\"white\">"
         "<h2>Failed to load URL "
@@ -125,13 +125,12 @@ void KCEFClient::OnLoadError(CefRefPtr<CefBrowser> browser,
 
   frame->LoadURL(GetDataURI(ss.str(), "text/html"));
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::CloseAllBrowsers(bool force_close)
 {
-  if (!CefCurrentlyOn(TID_UI)) {
-    // Execute on the UI thread.
-    CefPostTask(TID_UI, base::BindOnce(&KCEFClient::CloseAllBrowsers, this,
-                                       force_close));
+  if (!CefCurrentlyOn(TID_UI))
+  {
+    CefPostTask(TID_UI, base::BindOnce(&KCEFClient::CloseAllBrowsers, this, force_close));
     return;
   }
 
@@ -141,44 +140,38 @@ void KCEFClient::CloseAllBrowsers(bool force_close)
   for (auto it = browsers_.begin(); it != browsers_.end(); ++it)
     (*it).second->GetHost()->CloseBrowser(force_close);
 }
-
-// static
-bool KCEFClient::IsChromeRuntimeEnabled() {
+//---------------------------------------------------------------------------
+bool KCEFClient::IsChromeRuntimeEnabled()
+{
   static int value = -1;
-  if (value == -1) {
+  if (value == -1)
+  {
     CefRefPtr<CefCommandLine> command_line =
         CefCommandLine::GetGlobalCommandLine();
     value = command_line->HasSwitch("enable-chrome-runtime") ? 1 : 0;
   }
   return value == 1;
 }
-
-
+//---------------------------------------------------------------------------
 void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
-                                        const CefString& title) {
+                                        const CefString& title)
+{
   std::string titleStr(title);
 
 #if defined(CEF_X11)
-  // Retrieve the X11 display shared with Chromium.
   ::Display* display = cef_get_xdisplay();
   DCHECK(display);
 
-  // Retrieve the X11 window handle for the browser.
   ::Window window = browser->GetHost()->GetWindowHandle();
-  if (window == kNullWindowHandle) {
+  if (window == kNullWindowHandle)
     return;
-  }
 
-  // Retrieve the atoms required by the below XChangeProperty call.
   const char* kAtoms[] = {"_NET_WM_NAME", "UTF8_STRING"};
   Atom atoms[2];
-  int result =
-      XInternAtoms(display, const_cast<char**>(kAtoms), 2, false, atoms);
-  if (!result) {
+  int result = XInternAtoms(display, const_cast<char**>(kAtoms), 2, false, atoms);
+  if (!result)
     NOTREACHED();
-  }
 
-  // Set the window title.
   XChangeProperty(display, window, atoms[0], atoms[1], 8, PropModeReplace,
                   reinterpret_cast<const unsigned char*>(titleStr.c_str()),
                   titleStr.size());
@@ -190,50 +183,50 @@ void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
   XStoreName(display, browser->GetHost()->GetWindowHandle(), titleStr.c_str());
 #endif  // defined(CEF_X11)
 }
-//------------------------------------------------------------------
+//---------------------------------------------------------------------------
 void KCEFClient::analyze()
 {
   scroll();
   query("get");
 }
-//------------------------------------------------------------------
+//---------------------------------------------------------------------------
 void KCEFClient::scroll(uint32_t y) const
 {
   browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->ExecuteJavaScript(
     get_scroll_command(y), "", 1
   );
 }
-//------------------------------------------------------------------
+//---------------------------------------------------------------------------
 void KCEFClient::set_url(const std::string& url) const
 {
   LOG(INFO) << "Setting URL to " << url;
   browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->LoadURL(url);
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::query(const std::string& q)
 {
   kutils::make_event([this]{ browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->GetSource(this); });
 }
-
+//---------------------------------------------------------------------------
 std::string KCEFClient::get_url() const
 {
   return browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->GetURL().ToString();
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::focus()
 {
   LOG(INFO) << "Bringing window to front and focusing";
 
   window_.focus();
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::Visit(const CefString& s)
 {
   current_source_ = s.ToString();
   LOG(INFO) << "Visit()";
   cb_(current_source_);
 }
-
+//---------------------------------------------------------------------------
 void KCEFClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
                            CefRefPtr<CefFrame>   frame,
                            int                   code)
@@ -243,13 +236,13 @@ void KCEFClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
     query("get");
   scroll(0);
 }
-
+//---------------------------------------------------------------------------
 void
 KCEFClient::run ()
 {
   window_.run();
 }
-
+//---------------------------------------------------------------------------
 unsigned long
 KCEFClient::get_window() const
 {
