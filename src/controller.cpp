@@ -24,7 +24,7 @@ controller::controller(kcef_interface* kcef)
   kiq_({
     {kiq::constants::IPC_STATUS,         [this](auto msg) { LOG(INFO) << "Received IPC status"; kiq_.connect(); }},
     {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg) { (void)("NOOP"); }},
-    {kiq::constants::IPC_KIQ_MESSAGE, [this](auto msg) // IPC MSG HANDLER
+    {kiq::constants::IPC_KIQ_MESSAGE,    [this](auto msg) // IPC MSG HANDLER
     {
       json_t     data = json_t::parse(static_cast<kiq_msg_t*>(msg.get())->payload(), nullptr, false);
       const auto args = data["args"].get<payload_t>();
@@ -32,7 +32,14 @@ controller::controller(kcef_interface* kcef)
 
       LOG(INFO) << "Type: " << type;
 
-      kiq_handler.at(type)(args);
+      try
+      {
+        kiq_handler.at(type)(args);
+      }
+      catch(const std::exception& e)
+      {
+        LOG(ERROR) << "Error handling message: " << e.what();
+      }
     }},
     {kiq::constants::IPC_PLATFORM_INFO, [this](auto msg) // IPC INFO
     {
@@ -54,12 +61,18 @@ controller::controller(kcef_interface* kcef)
   kiq_handler({
     { "message", [this](auto args)                                     // KIQ REQUESTS
     {
+      if (app_active_)
+        throw std::runtime_error{"App already active. Not changing URL"};
+
       kcef_->focus();
       enqueue(args.at(1));
     }
     },
     { "query",   [this](auto args)                                     // FIND SOMETHING TO ANALYZE
     {
+      if (app_active_)
+        throw std::runtime_error{"App already active. Not starting new query"};
+
       LOG(INFO) << "Received query. Setting app to active";
       app_active_  = true;
       app_waiting_ = false;
