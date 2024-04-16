@@ -23,9 +23,7 @@ public:
 
     XEvent event;
     do
-    {
       XNextEvent(display_, &event);
-    }
     while (event.type != MapNotify);
   }
 
@@ -34,10 +32,34 @@ public:
       XCloseDisplay(display_);
   }
 
-  void focus()
+  void focus() const
   {
+    set_top();
     XRaiseWindow(display_, window_);
     XSetInputFocus(display_, window_, RevertToParent, CurrentTime);
+  }
+
+  void set_top(bool top = true) const
+  {
+
+    XEvent event;
+    std::memset(&event, 0, sizeof(event));
+
+    Atom wm_state = XInternAtom(display_, "_NET_WM_STATE", False);
+    Atom wm_state_above = XInternAtom(display_, "_NET_WM_STATE_ABOVE", False);
+
+    event.type = ClientMessage;
+    event.xclient.window = window_;
+    event.xclient.message_type = wm_state;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = (top) ? 1 : 0;
+    event.xclient.data.l[1] = wm_state_above;
+    event.xclient.data.l[2] = 0;
+    event.xclient.data.l[3] = 1;
+    event.xclient.data.l[4] = 0;
+
+    XSendEvent(display_, DefaultRootWindow(display_), False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XFlush(display_);
   }
 
   void run()

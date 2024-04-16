@@ -213,11 +213,18 @@ std::string KCEFClient::get_url() const
   return browsers_.at(DEFAULT_KCEF_ID)->GetMainFrame()->GetURL().ToString();
 }
 //---------------------------------------------------------------------------
-void KCEFClient::focus()
+void KCEFClient::focus() const
 {
   LOG(INFO) << "Bringing window to front and focusing";
 
   window_.focus();
+}
+//---------------------------------------------------------------------------
+void KCEFClient::on_finish() const
+{
+  LOG(INFO) << "Setting window to normal";
+
+  window_.set_top(false);
 }
 //---------------------------------------------------------------------------
 void KCEFClient::Visit(const CefString& s)
