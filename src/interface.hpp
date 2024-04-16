@@ -15,7 +15,8 @@ class kcef_interface
   virtual std::string   get_url ()                   const = 0;
   virtual void          scroll  (uint32_t)           const = 0;
   virtual void          analyze ()                         = 0;
-  virtual void          focus   ()                         = 0;
+  virtual void          focus   ()                   const = 0;
   virtual unsigned long get_window()                 const = 0;
   virtual void          run()                              = 0;
+  virtual void          on_finish()                  const = 0;
 };

@@ -93,6 +93,7 @@ controller::controller(kcef_interface* kcef)
       for (const auto& arg : args)
         LOG(INFO) << "Arg: " << arg;
       kiq_.set_reply_pending(false);
+      kcef_->on_finish();
       app_active_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
     },
