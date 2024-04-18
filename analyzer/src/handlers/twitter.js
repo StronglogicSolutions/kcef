@@ -23,12 +23,16 @@ async function create_analysis(nlp, doc)
 
   let   select = []
   const data   = []
+  let   active = false
   try
   {
     await controller.start()
-  } catch (error) {
+    active = true
+  }
+  catch (error)
+  {
     console.error('Failed to start controller.', error)
-    process.exit(1)
+    throw error
   }
 
   console.log('items', items)
@@ -38,6 +42,9 @@ async function create_analysis(nlp, doc)
   //--------------
   async function find_candidates()
   {
+    if (!active)
+      return
+
     const result = []
     for (const item of data)
       if (has_watchword(item.nlp.entities))
@@ -120,6 +127,13 @@ async function create_analysis(nlp, doc)
   async function formulate_strategy(data)
   {
     console.log('Formluating strategy for agitator: ', data.user)
+
+    const get_word = async (message, type = 'verb') =>
+    {
+      const verbs = await analyze(message, type)
+      return (verbs.length) ? verbs[0]["value"] : ""
+    }
+
     const is_good_context = context =>
     {
       if (context.message.length > 10)
@@ -188,8 +202,8 @@ async function create_analysis(nlp, doc)
 
         if (final_target)
         {
-          const verb = (await analyze(context.message, "verb"       ))["value"]
-          const prep = (await analyze(context.message, "preposition"))["value"]
+          const verb = await get_word(context.message, "verb")
+          const prep = await get_word(context.message, "preposition")
 
           return {
             text,
@@ -215,11 +229,18 @@ async function create_analysis(nlp, doc)
     for (let i = 0; i < select.length; i++)
     {
       console.log('Fetching user')
-      await controller.send(user_url(select[i].username))
-      const received = await controller.recv()
-      select[i].user = await read_user(received, select[i].username)
-      if (select[i].user.agitator)
-        select[i].strategy = await formulate_strategy(select[i])
+      try
+      {
+        await controller.send(user_url(select[i].username))
+        const received = await controller.recv()
+        select[i].user = await read_user(received, select[i].username)
+        if (select[i].user.agitator)
+          select[i].strategy = await formulate_strategy(select[i])
+      }
+      catch (error)
+      {
+        console.error('Error fetching user', error)
+      }
     }
   }
 
