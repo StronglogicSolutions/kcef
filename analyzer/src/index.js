@@ -1,5 +1,6 @@
 const path                         = require('path')
 const fs                           = require('fs')
+const winston                      = require('winston')
 const { JSDOM                    } = require('jsdom')
 const { dockStart                } = require('@nlpjs/basic')
 const { DomainManager, NluNeural } = require('@nlpjs/nlu')
@@ -9,12 +10,23 @@ const { get_name, rotate_files   } = require('./utils')
 const { analyze_tweets           } = require('./handlers/twitter')
 const { stdout }                   = require('process');
 
-const orig_console_log = console.log;
-console.log = function(...args)
-{
-  fs.appendFileSync(path.join(__dirname, 'console.log'), args.join(' ') + '\n');
-  orig_console_log.apply(console, args);
-}
+const logger = winston.createLogger({
+  level: 'trace',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: path.join(__dirname, '../../build', 'console.log') })
+  ]
+});
+
+console.log   = (...args) => { logger.info (...args) }
+console.error = (...args) => { logger.error(...args) }
+console.warn  = (...args) => { logger.warn (...args) }
+console.debug = (...args) => { logger.debug(...args) }
+console.trace = (...args) => { logger.trace(...args) }
 
 const dockstart   = dockStart
 const file_path   = process.argv[2]
@@ -39,10 +51,18 @@ const handlers =
 {
   "twitter": async (doc) =>
   {
-    const result = JSON.stringify(await analyze_tweets(nlp, doc))
-    await rotate_files()
-    fs.writeFileSync('./analysis.json', result)
-    console.log(result)
+    try
+    {
+      const result = JSON.stringify(await analyze_tweets(nlp, doc))
+      await rotate_files()
+      fs.writeFileSync('./analysis.json', result)
+      console.log(result)
+    }
+    catch (error)
+    {
+      console.error('Failed to analyze.', error)
+      process.exit(1)
+    }
   }
 }
 //--------------------------------------------
