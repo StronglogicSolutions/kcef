@@ -1,6 +1,5 @@
 const path                         = require('path')
 const fs                           = require('fs')
-const winston                      = require('winston')
 const { JSDOM                    } = require('jsdom')
 const { dockStart                } = require('@nlpjs/basic')
 const { DomainManager, NluNeural } = require('@nlpjs/nlu')
@@ -10,23 +9,20 @@ const { get_name, rotate_files   } = require('./utils')
 const { analyze_tweets           } = require('./handlers/twitter')
 const { stdout }                   = require('process');
 
-const logger = winston.createLogger({
-  level: 'trace',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: path.join(__dirname, '../../build', 'console.log') })
-  ]
-});
-
-console.log   = (...args) => { logger.info (...args) }
-console.error = (...args) => { logger.error(...args) }
-console.warn  = (...args) => { logger.warn (...args) }
-console.debug = (...args) => { logger.debug(...args) }
-console.trace = (...args) => { logger.trace(...args) }
+const logpath = path.join(__dirname, '../../build', 'console.log')
+for (const level of ['log', 'error', 'warn', 'debug', 'trace'])
+{
+  const logger = console[level]
+  console[level] = function(...args)
+  {
+    const now       = new Date()
+    now.setUTCHours(now.getUTCHours() - 4)
+    const timestamp = now.toISOString()
+    args[0]         = `${timestamp} - ${process.pid} - ${args[0]}`
+    fs.appendFileSync(logpath, args.join(' ') + '\n')
+    logger.apply(console, args)
+  }
+}
 
 const dockstart   = dockStart
 const file_path   = process.argv[2]
@@ -68,8 +64,8 @@ const handlers =
 //--------------------------------------------
 //--------------------------------------------
 //--------------------------------------------
-;//////////////////MAIN///////////////////////
-(async () =>
+//////////////////MAIN///////////////////////
+async function main()
 {
   let temp = console.log   // silence bootstrap
   console.log = ()=>{}
@@ -94,12 +90,16 @@ const handlers =
     const data = fs.readFileSync(file_path).toString()
     const doc  = new JSDOM(data).window.document
 
-    handlers[get_name(url)](doc)
+    await handlers[get_name(url)](doc)
+    console.log('Handling complete. Exiting')
+    process.exit(0)
   }
   catch ({ message })
   {
     console.error("Exception caught:", message)
   }
 
-  nlp.save(path.join(__dirname, "kcef_models.nlp"))
-})()
+  // nlp.save(path.join(__dirname, "kcef_models.nlp"))
+}
+
+main()
