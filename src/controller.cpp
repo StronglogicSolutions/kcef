@@ -47,7 +47,8 @@ controller::controller(kcef_interface* kcef)
       const auto data = static_cast<kiq::platform_info*>(msg.get())->info();
 
       LOG(INFO) << "Info command: " << type;
-      LOG(INFO) << "Info payload: " << data;
+      LOG(INFO) << "Info payload: " << std::string{data.begin(), (data.size() > 500) ?
+                                                        data.begin() + 500 : data.end()};
       try
       {
         kiq_handler.at(type)({ data });
@@ -70,13 +71,14 @@ controller::controller(kcef_interface* kcef)
     },
     { "query",   [this](auto args)                                     // FIND SOMETHING TO ANALYZE
     {
-      if (app_active_)
-        throw std::runtime_error{"App already active. Not starting new query"};
+      if (!timer_.check_and_update())
+        throw std::runtime_error{"Query already in progress"};
 
       LOG(INFO) << "Received query. Setting app to active";
       app_active_  = true;
       app_waiting_ = false;
-      kcef_->query  (args.at(1));
+      kcef_->query(args.at(1));
+      timer_.reset();
     }
     },
     { "loadurl", [this](auto args)                                     // LOAD URL
@@ -89,9 +91,7 @@ controller::controller(kcef_interface* kcef)
     },
     { "analysis", [this](auto args)                                    // ANALYSIS RESULTS
     {
-      LOG(INFO) << "handling analysis results. Printing args";
-      for (const auto& arg : args)
-        LOG(INFO) << "Arg: " << arg;
+      LOG(INFO) << "Handling analysis results";
       kiq_.set_reply_pending(false);
       kcef_->on_finish();
       app_active_ = false;
@@ -139,11 +139,9 @@ controller::controller(kcef_interface* kcef)
         process.do_work();
       }
 
-      const auto result = process.get();
-
       if (process.has_error())
-        LOG(ERROR) << "NodeJS app failed: "  << process.get_error();
-      LOG(INFO)  << "NodeJS app stdout:\n" << result.output;
+        LOG(ERROR) << "NodeJS app error: "  << process.get_error();
+      LOG(INFO)  << "NodeJS app stdout: " << process.preview();
     });
 
     kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
@@ -158,7 +156,17 @@ controller::state controller::work()
     handle_queue();
 
     if (!app_active_ && proc_future_.valid())
+    {
+      LOG(INFO)  << "Joining analyzer thread";
       proc_future_.wait();
+      proc_future_.get();
+    }
+    else
+    if (app_active_ && timer_.check_and_update())
+    {
+      LOG(ERROR) << "Analyzer taking too long. Should kill.";
+      app_active_ = false;
+    }
 
     kcef_->run();
   }
