@@ -49,6 +49,12 @@ function create_controller()
       await this.rx_.bind(rx_addr);
     },
 
+    stop: function()
+    {
+      this.tx_.close()
+      this.rx_.close()
+    },
+
     send: async function(data, cmd = command)
     {
       await this.tx_.send(kproto(cmd, data, appname))

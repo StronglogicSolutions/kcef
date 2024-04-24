@@ -93,7 +93,10 @@ async function rotate_files()
   }
 }
 
+function delay(timeout = 300) { return new Promise(resolve => setTimeout(resolve, timeout)) }
+
 module.exports.analyze = analyze
 module.exports.get_name = get_name
 module.exports.fetch_wiki = fetch_wiki
 module.exports.rotate_files = rotate_files
+module.exports.delay = delay
