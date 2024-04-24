@@ -83,6 +83,9 @@ controller::controller(kcef_interface* kcef)
     },
     { "loadurl", [this](auto args)                                     // LOAD URL
     {
+      if (!app_active_)
+        LOG(WARNING) << "Received loadurl request but app isn't active";
+
       LOG(INFO) << "handling loadurl request from analyzer. App will wait for source and then send back";
       app_waiting_ = true;
       kiq_.set_reply_pending();
@@ -166,6 +169,7 @@ controller::state controller::work()
     {
       LOG(ERROR) << "Analyzer taking too long. Should kill.";
       app_active_ = false;
+      kcef_->on_finish();
     }
 
     kcef_->run();

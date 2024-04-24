@@ -1,4 +1,4 @@
-const { analyze, fetch_wiki } = require('../utils')
+const { analyze, fetch_wiki, delay } = require('../utils')
 const { create_controller   } = require('../socket')
 const { JSDOM               } = require('jsdom')
 const fs = require('fs')
@@ -21,21 +21,28 @@ async function create_analysis(nlp, doc)
     return false
   }
 
-  let   select = []
-  const data   = []
-  let   active = false
-  try
+  let   select   = []
+  const data     = []
+  let   attempts = 0
+  let   active   = false
+  while (!active && ++attempts < 5)
   {
-    await controller.start()
-    active = true
-  }
-  catch (error)
-  {
-    console.error('Failed to start controller.', error)
-    throw error
+    try
+    {
+      await controller.start()
+      active = true
+    }
+    catch (error)
+    {
+      console.error(error)
+      await delay()
+    }
   }
 
-  console.log('items', items)
+  if (!active)
+    throw new Error('Failed to start controller')
+
+  console.log(items.map(item => `${item.username} : ${item.text}}`))
   for (const item of items)
     data.push({ nlp: await nlp.process('en', item.text), username: item.username })
 
@@ -247,7 +254,11 @@ async function create_analysis(nlp, doc)
   await compute_resolutions()
   await fetch_users()
   await controller.send(JSON.stringify(select), "analysis")
+
   console.log('Sent analysis')
+
+  controller.stop()
+
   return select
 }
 //--------------------------------------------
