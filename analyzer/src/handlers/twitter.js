@@ -233,6 +233,16 @@ async function create_analysis(nlp, doc)
   //--------------
   async function fetch_users()
   {
+    const deferred = {}
+    deferred.p = new Promise(resolve => { deferred.r = resolve })
+    deferred.t = new Promise(async resolve =>
+      {
+        await delay(100000)
+        console.log('Timeout while fetching users')
+        process.exit(1)
+        resolve()
+      })
+
     for (let i = 0; i < select.length; i++)
     {
       console.log('Fetching user')
@@ -249,6 +259,9 @@ async function create_analysis(nlp, doc)
         console.error('Error fetching user', error)
       }
     }
+    deferred.r()
+
+    await Promise.race([deferred.p, deferred.t])
   }
 
   await compute_resolutions()
