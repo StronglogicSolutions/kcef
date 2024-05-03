@@ -78,7 +78,6 @@ controller::controller(kcef_interface* kcef)
       app_active_  = true;
       app_waiting_ = false;
       kcef_->query(args.at(1));
-      timer_.reset();
     }
     },
     { "loadurl", [this](auto args)                                     // LOAD URL
@@ -99,6 +98,8 @@ controller::controller(kcef_interface* kcef)
       kcef_->on_finish();
       app_active_ = false;
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
+      timer_.stop();
+
     },
     },
     { "info",  [this](auto args)                                       // ANALYZE REQUEST
@@ -109,6 +110,8 @@ controller::controller(kcef_interface* kcef)
     }
   })
 {
+  timer_.stop();
+
   kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
     LOG(INFO) << "controller::kcef_::init() callback";
