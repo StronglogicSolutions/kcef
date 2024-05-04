@@ -22,8 +22,9 @@ class KCEFClient : public CefClient,
   void          scroll (uint32_t y = 24000) const final;
   std::string   get_url()                   const final;
   void          analyze()                         final;
-  void          focus()                     const final;
-  void          on_finish()                 const final;
+  void          focus()                           final;
+  bool          has_focus()                 const final;
+  void          on_finish()                       final;
   void          run ()                            final;
   unsigned long get_window()                const final;
 
