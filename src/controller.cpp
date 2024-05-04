@@ -74,6 +74,9 @@ controller::controller(kcef_interface* kcef)
       if (!timer_.check_and_update())
         throw std::runtime_error{"Query already in progress"};
 
+      if (!kcef_->has_focus())
+        throw std::runtime_error{"Won't run query until KCEF in focus"};
+
       LOG(INFO) << "Received query. Setting app to active";
       app_active_  = true;
       app_waiting_ = false;

@@ -32,14 +32,14 @@ public:
       XCloseDisplay(display_);
   }
 
-  void focus() const
+  void focus()
   {
     set_top();
     XRaiseWindow(display_, window_);
     XSetInputFocus(display_, window_, RevertToParent, CurrentTime);
   }
 
-  void set_top(bool top = true) const
+  void set_top(bool top = true)
   {
 
     XEvent event;
@@ -60,6 +60,8 @@ public:
 
     XSendEvent(display_, DefaultRootWindow(display_), False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
     XFlush(display_);
+
+    is_top_ = top;
   }
 
   void run()
@@ -93,10 +95,16 @@ void set_cef(Window cefwin)
   cefwin_ = cefwin;
 }
 
+bool is_top() const
+{
+  return is_top_;
+}
+
 private:
   Display* display_;
   Window   window_;
   Window   cefwin_{0};
   int      width_{960};
   int      height_{640};
+  bool     is_top_{false};
 };
