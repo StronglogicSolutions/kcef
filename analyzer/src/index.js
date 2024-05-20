@@ -43,23 +43,25 @@ async function train_nlp(nlp)
 }
 //--------------------------------------------
 //--------------------------------------------
+const xhandler = async (doc) =>
+{
+  try
+  {
+    const result = JSON.stringify(await analyze_tweets(nlp, doc))
+    await rotate_files()
+    fs.writeFileSync('./analysis.json', result)
+    console.log(result)
+  }
+  catch (error)
+  {
+    console.error('Failed to analyze.', error)
+    process.exit(1)
+  }
+}
 const handlers =
 {
-  "twitter": async (doc) =>
-  {
-    try
-    {
-      const result = JSON.stringify(await analyze_tweets(nlp, doc))
-      await rotate_files()
-      fs.writeFileSync('./analysis.json', result)
-      console.log(result)
-    }
-    catch (error)
-    {
-      console.error('Failed to analyze.', error)
-      process.exit(1)
-    }
-  }
+  "twitter": xhandler,
+  "x"      : xhandler
 }
 //--------------------------------------------
 //--------------------------------------------
@@ -91,12 +93,13 @@ async function main()
     const doc  = new JSDOM(data).window.document
 
     await handlers[get_name(url)](doc)
+
     console.log('Handling complete. Exiting')
     process.exit(0)
   }
   catch ({ message })
   {
-    console.error("Exception caught:", message)
+    console.error("Exception caught while handling for url", message, url)
   }
 
   // nlp.save(path.join(__dirname, "kcef_models.nlp"))

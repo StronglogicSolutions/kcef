@@ -42,6 +42,7 @@ async function analyze(text, command)
 //--------------------------------------------
 function get_name(url)
 {
+  console.log('Getting name for', url)
   const full = url.substring(url.indexOf("://") + 3)
   return full.substring(0, full.lastIndexOf('.'))
 }
