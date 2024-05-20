@@ -105,6 +105,7 @@ server::poll()
     poll_mask |= (0x01 << 0);
   if (items[1].revents & ZMQ_POLLIN)
     poll_mask |= (0x01 << 1);
+
   return poll_mask;
 }
 //----------------------------------
