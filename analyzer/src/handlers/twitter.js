@@ -133,7 +133,7 @@ async function create_analysis(nlp, doc)
   //--------------
   async function formulate_strategy(data)
   {
-    console.log('Formluating strategy for agitator: ', data.user)
+    console.log('Formulating strategy for agitator: ', data.username)
 
     const get_word = async (message, type = 'verb') =>
     {
