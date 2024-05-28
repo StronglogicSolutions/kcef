@@ -90,7 +90,7 @@ void SimpleApp::OnContextInitialized()
 
   std::string url = command_line->GetSwitchValue("url");
   if (url.empty())
-    url = "http://www.google.com";
+    url = "https://twitter.com";
 
 
     // Information used when creating the native window.

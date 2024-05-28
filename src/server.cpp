@@ -131,11 +131,14 @@ void server::recv(bool tx)
 
   zmq::message_t  identity;
   zmq::socket_t&  sock = (tx) ? tx_ : rx_;
+
   if (!sock.recv(identity) || identity.empty())
   {
     LOG(ERROR) << "Failed to receive IPC: No identity";
     return;
   }
+
+  LOG(INFO) << "Identity was " << identity.to_string_view();
 
   buffers_t      buffer;
   zmq::message_t msg;
@@ -147,6 +150,7 @@ void server::recv(bool tx)
     more_flag = sock.get(zmq::sockopt::rcvmore);
   }
 
+  LOG(INFO) << "Deserializing";
   process_message(DeserializeIPCMessage(std::move(buffer)));
 }
 //----------------------------------

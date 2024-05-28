@@ -7,7 +7,7 @@
 #include "include/base/cef_logging.h"
 
 class xwindow {
-public:
+ public:
   xwindow(Display* display)
   : display_(display)
   {
@@ -45,20 +45,20 @@ public:
     XEvent event;
     std::memset(&event, 0, sizeof(event));
 
-    Atom wm_state = XInternAtom(display_, "_NET_WM_STATE", False);
-    Atom wm_state_above = XInternAtom(display_, "_NET_WM_STATE_ABOVE", False);
+    Atom wm_state_above = XInternAtom(display_, "_NET_WM_STATE_ABOVE", false);
+    Atom wm_state       = XInternAtom(display_, "_NET_WM_STATE",       false);
 
     event.type = ClientMessage;
-    event.xclient.window = window_;
     event.xclient.message_type = wm_state;
-    event.xclient.format = 32;
-    event.xclient.data.l[0] = (top) ? 1 : 0;
-    event.xclient.data.l[1] = wm_state_above;
-    event.xclient.data.l[2] = 0;
-    event.xclient.data.l[3] = 1;
-    event.xclient.data.l[4] = 0;
+    event.xclient.window       = window_;
+    event.xclient.format       = 32;
+    event.xclient.data.l[0]    = (top) ? 1 : 0;
+    event.xclient.data.l[1]    = wm_state_above;
+    event.xclient.data.l[2]    = 0;
+    event.xclient.data.l[3]    = 1;
+    event.xclient.data.l[4]    = 0;
 
-    XSendEvent(display_, DefaultRootWindow(display_), False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XSendEvent(display_, DefaultRootWindow(display_), false, SubstructureRedirectMask | SubstructureNotifyMask, &event);
     XFlush(display_);
 
     is_top_ = top;
@@ -104,7 +104,7 @@ private:
   Display* display_;
   Window   window_;
   Window   cefwin_{0};
-  int      width_{960};
+  int      width_ {960};
   int      height_{640};
   bool     is_top_{false};
 };
