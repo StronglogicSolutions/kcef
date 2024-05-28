@@ -127,7 +127,7 @@ controller::controller(kcef_interface* kcef)
 
   kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
-    const auto url      = kcef_->get_url();
+    const auto url = kcef_->get_url();
 
     LOG(INFO) << "controller::kcef_::init() callback";
 
@@ -189,7 +189,7 @@ controller::state controller::work()
     else
     if (app_active_ && timer_.check_and_update())
     {
-      LOG(ERROR) << "Analyzer taking too long. Should kill.";
+      LOG(ERROR) << "Analyzer taking long: calling std::future::wait() on next run()";
       app_active_ = false;
       kcef_->on_finish();
     }
