@@ -1,6 +1,7 @@
 #pragma once
 
 #include "include/cef_client.h"
+#include <include/cef_request_context_handler.h>
 #include "interface.hpp"
 #include "window.hpp"
 
@@ -29,19 +30,19 @@ class KCEFClient : public CefClient,
   unsigned long get_window()                const final;
 
   static KCEFClient* GetInstance();
-                                                                          // CefClient methods:
+                                                                          // CefClient methods
   virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler  () override { return this; }
   virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   virtual CefRefPtr<CefLoadHandler> GetLoadHandler        () override { return this; }
 
-  virtual void OnTitleChange(CefRefPtr<CefBrowser> browser,               // CefDisplayHandler methods:
+  virtual void OnTitleChange(CefRefPtr<CefBrowser> browser,               // CefDisplayHandler methods
                              const CefString&      title) override;
 
-  virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;    // CefLifeSpanHandler methods:
+  virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;    // CefLifeSpanHandler methods
   virtual bool DoClose       (CefRefPtr<CefBrowser> browser) override;
   virtual void OnBeforeClose (CefRefPtr<CefBrowser> browser) override;
 
-  virtual void OnLoadError(CefRefPtr<CefBrowser> browser,                 // CefLoadHandler methods:
+  virtual void OnLoadError(CefRefPtr<CefBrowser> browser,                 // CefLoadHandler methods
                            CefRefPtr<CefFrame>   frame,
                            ErrorCode             errorCode,
                            const CefString&      errorText,

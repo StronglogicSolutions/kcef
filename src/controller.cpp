@@ -51,7 +51,7 @@ controller::controller(kcef_interface* kcef)
                                                         data.begin() + 500 : data.end()};
       try
       {
-        kiq_handler.at(type)({ data });
+        kiq_handler.at(type)({ data, type });
       }
       catch(const std::exception& e)
       {
@@ -100,15 +100,25 @@ controller::controller(kcef_interface* kcef)
       kiq_.set_reply_pending(false);
       kcef_->on_finish();
       app_active_ = false;
-      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis"));
+      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis", ""));
       timer_.stop();
-
     },
     },
     { "info",  [this](auto args)                                       // ANALYZE REQUEST
     {
       LOG(INFO) << "Handling scroll test";
       kcef_->analyze();
+    },
+    },
+    { "generate", [this](const std::vector<std::string>& args)
+    {
+      kiq_.enqueue_ipc(std::make_unique<kiq::platform_request>("kai", "0", "DEFAULT_USER", "generate", args.at(0)));
+    },
+    },
+    { "generated", [this](const std::vector<std::string>& args)
+    {
+      kiq_.set_reply_pending();
+      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", args.front(), "generated", ""));
     },
     }
   })
@@ -117,7 +127,10 @@ controller::controller(kcef_interface* kcef)
 
   kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
+    const auto url      = kcef_->get_url();
+
     LOG(INFO) << "controller::kcef_::init() callback";
+
     if (!app_waiting_ && !app_active_)
     {
       LOG(INFO) << "App not waiting and not active";
@@ -126,14 +139,17 @@ controller::controller(kcef_interface* kcef)
 
     if (app_waiting_) // Analyzer requests additional sources before returning result
     {
+      const auto filename = kutils::get_unix_tstring() + "_user.html";
+      kutils::SaveToFile(s, filename);
+
+      LOG(INFO) << "Saved " << url << " to " << filename;
       LOG(INFO) << "App was waiting for source from new URL. Sending back to analyzer.";
-      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url"));
+      kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url", ""));
       return;
     }
 
     LOG(INFO) << "App is active. Will process";
 
-    const auto url      = kcef_->get_url();
     const auto filename = kutils::get_unix_tstring() + ".html";
     kutils::SaveToFile(s, filename);
 
@@ -153,7 +169,7 @@ controller::controller(kcef_interface* kcef)
       LOG(INFO)  << "NodeJS app stdout: " << process.preview();
     });
 
-    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source"));
+    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source", ""));
   });
 }
 //-----------------------------------
@@ -183,7 +199,6 @@ controller::state controller::work()
   catch (const std::exception& e)
   {
     LOG(ERROR) << "Exception caught in controller: " << e.what();
-    return state::shutdown;
   }
 
   return state::work;

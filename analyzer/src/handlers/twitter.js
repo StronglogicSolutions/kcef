@@ -1,7 +1,8 @@
 const { analyze, fetch_wiki, delay } = require('../utils')
 const { create_controller   } = require('../socket')
 const { JSDOM               } = require('jsdom')
-const fs = require('fs')
+const { context } = require('zeromq/lib/native')
+const fs          = require('fs')
 const text_target = '[data-testid="tweetText"]'
 const name_target = '[data-testid="User-Name"]'
 const user_target = '[data-testid="UserName"]'
@@ -58,9 +59,11 @@ async function create_analysis(nlp, doc)
         result.push({ ...item })
     return result
   }
+
   //--------------
   async function read_user(data, name)
   {
+    console.log('Reading user', name)
     const result = {
       "agitator": false,
       "types": [],
@@ -70,6 +73,7 @@ async function create_analysis(nlp, doc)
 
     const doc           = new JSDOM(data).window.document
     const selector      = doc.querySelector(user_target)
+
     if (!selector)
       return result
 
@@ -158,6 +162,18 @@ async function create_analysis(nlp, doc)
       return false
     }
 
+    const fetch_ai_generation = async message =>
+    {
+      console.log('fetching ai generation')
+      const request = `Imagine the following text as an agitation and compose a rebuttal: ${message}`
+      await controller.send(request, "generate")
+      const response = await controller.recv()
+      console.log('Received generation response', response)
+      return response.length  && response.toLowerCase().indexOf('rebuttal:') ?
+        response.substring(response.indexOf('rebuttal:') + 9)
+        : 'Failed to parse'
+    }
+
     const text          = data.nlp.utterance
     const user          = data.user
     const contexts      = data.context
@@ -194,8 +210,12 @@ async function create_analysis(nlp, doc)
         data.target.value = target
     }
 
+    if (!context.length)
+      console.warn('No contexts. Will fail to create strategy')
+
     for (const context of contexts)
     {
+      console.log('Checking context')
       if (context.objective.includes("assertion")     &&
           context.objective.includes("single phrase") &&
           is_good_context(context))
@@ -209,6 +229,7 @@ async function create_analysis(nlp, doc)
 
         if (final_target)
         {
+          console.log('Identified final target')
           const verb = await get_word(context.message, "verb")
           const prep = await get_word(context.message, "preposition")
 
@@ -216,11 +237,11 @@ async function create_analysis(nlp, doc)
             text,
             user,
             context,
-            is_assertion: context.objective.includes("assertion"),
-            is_question: context.objective.includes("question"),
+            is_assertion:  context.objective.includes("assertion"),
+            is_question:   context.objective.includes("question"),
             is_imperative: context.objective.includes("imperative"),
             is_negative,
-            response: `Why should anyone believe you ${verb} ${prep} ${final_target}?`,
+            response: await fetch_ai_generation(context.message),
             target: final_target,
             wiki: await fetch_wiki(encodeURI(final_target))
           }
@@ -237,7 +258,7 @@ async function create_analysis(nlp, doc)
     deferred.p = new Promise(resolve => { deferred.r = resolve })
     deferred.t = new Promise(async resolve =>
       {
-        await delay(100000)
+        await delay(500000)
         console.log('Timeout while fetching users')
         process.exit(1)
         resolve()
