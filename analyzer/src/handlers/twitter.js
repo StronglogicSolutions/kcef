@@ -166,12 +166,14 @@ async function create_analysis(nlp, doc)
     {
       console.log('fetching ai generation')
       const request = `Imagine the following text as an agitation and compose a rebuttal: ${message}`
+
       await controller.send(request, "generate")
+
       const response = await controller.recv()
+
       console.log('Received generation response', response)
-      return response.length  && response.toLowerCase().indexOf('rebuttal:') ?
-        response.substring(response.indexOf('rebuttal:') + 9)
-        : 'Failed to parse'
+
+      return response.length ? response : 'Failed to parse'
     }
 
     const text          = data.nlp.utterance
@@ -260,7 +262,6 @@ async function create_analysis(nlp, doc)
       {
         await delay(500000)
         console.log('Timeout while fetching users')
-        process.exit(1)
         resolve()
       })
 
