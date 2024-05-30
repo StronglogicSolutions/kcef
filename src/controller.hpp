@@ -32,7 +32,7 @@ using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>
   kiq_handler_t         kiq_handler;
   browse_queue_t        queue_;
   kutils::bucket<1, 5>  bucket_; // REQ/N sec
-  kutils::timer<300000> timer_;  // 300 seconds / 5 minutes
+  kutils::timer<900000> timer_;  // 300 seconds / 15 minutes
   bool                  app_waiting_{false};
   bool                  app_active_{false};
   std::future<void>     proc_future_;

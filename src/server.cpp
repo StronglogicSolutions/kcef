@@ -86,7 +86,11 @@ ipc_msg_t server::wait_and_pop()
     LOG(ERROR) << "Popped null message";
   else
   if (msg->type() != 0x01)
-    LOG(INFO) << "Popping message: " << msg->to_string();
+  {
+    const auto full_msg = msg->to_string();
+    const auto preview  = (full_msg.size() > 500) ? full_msg.substr(0, 500) : full_msg;
+    LOG(INFO) << "Popping message: " << preview;
+  }
 
   return msg;
 }
