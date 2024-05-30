@@ -90,16 +90,15 @@ controller::controller(kcef_interface* kcef)
 
       LOG(INFO) << "handling loadurl request from analyzer. App will wait for source and then send back";
       app_waiting_ = true;
-      kiq_.set_reply_pending();
       enqueue(args.at(0));
     }
     },
     { "analysis", [this](auto args)                                    // ANALYSIS RESULTS
     {
       LOG(INFO) << "Handling analysis results";
-      kiq_.set_reply_pending(false);
       kcef_->on_finish();
       app_active_ = false;
+      kiq_.set_reply_pending(false);
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis", ""));
       timer_.stop();
     },
@@ -127,15 +126,13 @@ controller::controller(kcef_interface* kcef)
 
   kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
-    const auto url = kcef_->get_url();
-
-    LOG(INFO) << "controller::kcef_::init() callback";
-
     if (!app_waiting_ && !app_active_)
     {
       LOG(INFO) << "App not waiting and not active";
       return;
     }
+
+    const auto url = kcef_->get_url();
 
     if (app_waiting_) // Analyzer requests additional sources before returning result
     {
@@ -144,6 +141,7 @@ controller::controller(kcef_interface* kcef)
 
       LOG(INFO) << "Saved " << url << " to " << filename;
       LOG(INFO) << "App was waiting for source from new URL. Sending back to analyzer.";
+      kiq_.set_reply_pending();
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", escape_s(s), "new_url", ""));
       return;
     }
@@ -155,7 +153,7 @@ controller::controller(kcef_interface* kcef)
 
     LOG(INFO) << "Saved " << url << " to " << filename;
 
-    proc_future_ = std::async(std::launch::async, [this, &url, &filename]
+    proc_future_ = std::async(std::launch::async, [this, url, filename]
     {
       auto process = kiq::process({"./app.sh", filename, url}, 240);  // ANALYZE
       while (process.has_work())
@@ -168,8 +166,6 @@ controller::controller(kcef_interface* kcef)
         LOG(ERROR) << "NodeJS app error: "  << process.get_error();
       LOG(INFO)  << "NodeJS app stdout: " << process.preview();
     });
-
-    kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", s, "source", ""));
   });
 }
 //-----------------------------------
