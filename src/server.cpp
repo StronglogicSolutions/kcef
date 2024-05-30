@@ -120,13 +120,18 @@ zmq::socket_t& server::socket()
 //----------------------------------
 void server::set_reply_pending(bool pending)
 {
+  if (pending)
+    LOG(INFO) << "Messages will be sent to Analyzer";
+  else
+    LOG(INFO) << "Messages will be sent to KIQ";
+
   reply_ = pending;
 }
 //----------------------------------
 void server::on_done()
 {
   LOG(INFO) << "Sent message to " << socket().get(zmq::sockopt::last_endpoint);
-  reply_ = false;
+  set_reply_pending(false);
 }
 //----------------------------------
 void server::recv(bool tx)

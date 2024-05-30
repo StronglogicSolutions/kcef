@@ -44,7 +44,7 @@ function get_name(url)
 {
   console.log('Getting name for', url)
   const full = url.substring(url.indexOf("://") + 3)
-  return full.substring(0, full.lastIndexOf('.'))
+  return full.substring(0, full.indexOf('.'))
 }
 //--------------------------------------------
 const fetch_wiki = async (query) =>
@@ -68,29 +68,30 @@ const fetch_wiki = async (query) =>
 async function rotate_files()
 {
   const directory = './'
-  const filename = 'analysis.json';
+  const filename = 'analysis.json'
 
-  const filepath = path.join(directory, filename);
+  const filepath = path.join(directory, filename)
 
   try
   {
-    await fs.access(filepath, fs.constants.F_OK);
-    console.log(`${filename} exists in the directory.`);
+    await fs.access(filepath, fs.constants.F_OK)
 
-    const stats         = await fs.stat(filepath);
-    const last_modified = stats.mtime.getTime();
-    const new_filename  = `analysis${last_modified}.json`;
-    const new_filepath  = path.join(directory, new_filename);
+    console.log(`${filename} exists in the directory.`)
 
-    await fs.copyFile(filepath, new_filepath);
-    console.log(`${filename} has been copied as ${new_filename}`);
+    const stats         = await fs.stat(filepath)
+    const last_modified = stats.mtime.getTime()
+    const new_filename  = `analysis${last_modified}.json`
+    const new_filepath  = path.join(directory, new_filename)
+
+    await fs.copyFile(filepath, new_filepath)
+    console.log(`${filename} has been copied as ${new_filename}`)
   }
   catch (err)
   {
     if (err.code === 'ENOENT')
-      console.error(`${filename} does not exist in the directory.`);
+      console.error(`${filename} does not exist in the directory.`)
     else
-      console.error('An error occurred:', err);
+      console.error('An error occurred:', err)
   }
 }
 

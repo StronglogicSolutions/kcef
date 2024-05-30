@@ -244,6 +244,7 @@ async function create_analysis(nlp, doc)
             is_imperative: context.objective.includes("imperative"),
             is_negative,
             response: await fetch_ai_generation(context.message),
+            response2: `Why should anyone believe you ${verb} ${prep} ${final_target}?`,
             target: final_target,
             wiki: await fetch_wiki(encodeURI(final_target))
           }
