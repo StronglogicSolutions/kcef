@@ -181,6 +181,7 @@ controller::state controller::work()
       LOG(INFO)  << "Joining analyzer thread";
       proc_future_.wait();
       proc_future_.get();
+      app_waiting_ = false;
     }
     else
     if (app_active_ && timer_.check_and_update())
