@@ -10,3 +10,6 @@
 [submodule "third_party/process_executor"]
 	path = third_party/process_executor
 	url = https://github.com/StronglogicSolutions/process_executor
+[submodule "third_party/ksysmon"]
+	path = third_party/ksysmon
+	url = https://github.com/StronglogicSolutions/ksysmonitor
