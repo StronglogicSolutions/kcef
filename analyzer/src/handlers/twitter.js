@@ -6,6 +6,7 @@ const fs          = require('fs')
 const text_target = '[data-testid="tweetText"]'
 const name_target = '[data-testid="User-Name"]'
 const user_target = '[data-testid="UserName"]'
+const desc_target = '[data-testid="UserDescription"]'
 const controller  = create_controller()
 
 //--------------------------------------------
@@ -71,13 +72,30 @@ async function create_analysis(nlp, doc)
       "description": ""
     }
 
-    const doc           = new JSDOM(data).window.document
-    const selector      = doc.querySelector(user_target)
+    const doc         = new JSDOM(data).window.document
+    let selector      = doc.querySelector(user_target)
+    let descselector  = doc.querySelector('UserDescription')
+    console.log('1st try selector is', selector)
 
     if (!selector)
-      return result
+    {
+      selector      = doc.querySelector(name_target)
+      console.log('2nd try selector is', selector)
+    }
 
-    result.description  = selector.nextElementSibling.textContent
+    console.log(selector.textContent)
+    if (selector.nextElementSibling)
+    {
+      console.log(name, 'matched to next elem description', selector.nextElementSibling.textContent)
+      console.log(name, 'Same elem description was', selector.textContent)
+      result.description = selector.nextElementSibling.textContent
+    }
+    else
+    {
+      console.log(name, 'matched to same elem description', selector.textContent)
+      result.description = selector.textContent
+    }
+
     const user_analysis = await nlp.process('en', result.description)
     const name_analysis = await nlp.process('en', name)
     let   imp_idx       = 0
@@ -100,6 +118,12 @@ async function create_analysis(nlp, doc)
         if (entity.entity === "agitator_exp" || ++imp_idx > 2)
           result.agitator = true
       }
+    }
+
+    if (result.description.length > 100000)
+    {
+      console.log('Description too large - must be HTML page')
+      result.description = ''
     }
 
     return result
@@ -171,7 +195,7 @@ async function create_analysis(nlp, doc)
 
       const response = await controller.recv()
 
-      console.log('Received generation response', response)
+      console.log('Received generation response', response.length > 500 ? response.substring(0, 500) : response)
 
       return response.length ? response : 'Failed to parse'
     }
@@ -212,7 +236,7 @@ async function create_analysis(nlp, doc)
         data.target.value = target
     }
 
-    if (!context.length)
+    if (context || context.length === 0)
       console.warn('No contexts. Will fail to create strategy')
 
     for (const context of contexts)
