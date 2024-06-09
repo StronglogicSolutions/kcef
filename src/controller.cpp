@@ -128,9 +128,15 @@ controller::controller(kcef_interface* kcef)
   ksys_([this](kiq::monitor_state state)
   {
     if (state.suspend)
+    {
+      LOG(WARNING) << "System will sleep";
       was_sleeping_ = true;
+    }
     else
-      wake_timer_ = kutils::timer<5000>{};
+    {
+      LOG(WARNING) << "System waking. Waiting 5 seconds for connectivity.";
+      wake_timer_.reset();
+    }
   })
 {
   timer_.stop();

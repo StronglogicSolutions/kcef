@@ -37,6 +37,7 @@ server::server(ipc_dispatch_t dispatch)
 
   kiq::set_log_fn(ipc_log);
 
+  flush();
   connect();
 }
 //----------------------------------
@@ -169,5 +170,29 @@ void server::enqueue_ipc(kiq::ipc_message::u_ipc_msg_ptr msg)
   const auto& msg_s = input.size() > 500 ? input.substr(0, 500) : input;
   LOG(INFO) << "enqueueing outgoing IPC message: " << msg_s;
   out_.emplace_back(std::move(msg));
+}
+//----------------------------------
+void server::flush()
+{
+  LOG(INFO) << "Flushing incoming IPC messages";
+  zmq::message_t message;
+  while (true)
+  {
+    try
+    {
+      if (!rx_.recv(message, zmq::recv_flags::dontwait))
+        break;
+    }
+    catch (const zmq::error_t& e)
+    {
+      if (e.num() == EAGAIN)
+        break;
+      else
+      {
+        LOG(ERROR) << "Error while flushing socket: " << e.what();
+        break;
+      }
+    }
+  }
 }
 } // ns kiq
