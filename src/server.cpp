@@ -189,7 +189,7 @@ void server::flush()
         break;
       else
       {
-        LOG(ERROR) << "Error while flushing socket: " << e.what();
+        LOG(ERROR) << "Error flushing socket: " << e.what();
         break;
       }
     }
