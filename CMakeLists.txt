@@ -11,6 +11,7 @@ include_directories(
   src
   ${CEF_BUILD_DIR}
   "third_party/kproto/include"
+  "third_party/ksysmon/include"
   "third_party/kutils/include"
   "third_party/process_executor"
   "third_party/json/include")
@@ -33,7 +34,7 @@ set(SOURCES
   src/handler.hpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} -lcef -lcef_dll_wrapper -lX11 -lzmq)
+target_link_libraries(${PROJECT_NAME} -lcef -lcef_dll_wrapper -lX11 -lzmq -lsystemd)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN")
 set_target_properties(${PROJECT_NAME} PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE)

@@ -51,7 +51,11 @@ controller::controller(kcef_interface* kcef)
                                                         data.begin() + 500 : data.end()};
       try
       {
-        kiq_handler.at(type)({ data, type });
+
+        if (was_sleeping_)
+          msg_queue_.push_back({type, { type, data } });
+        else
+          kiq_handler.at(type)({ data, type });
       }
       catch(const std::exception& e)
       {
@@ -119,6 +123,19 @@ controller::controller(kcef_interface* kcef)
       kiq_.set_reply_pending();
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("sentinel", args.front(), "generated", ""));
     },
+    }
+  }),
+  ksys_([this](kiq::monitor_state state)
+  {
+    if (state.suspend)
+    {
+      LOG(WARNING) << "System will sleep";
+      was_sleeping_ = true;
+    }
+    else
+    {
+      LOG(WARNING) << "System waking. Waiting 5 seconds for connectivity.";
+      wake_timer_.reset();
     }
   })
 {
@@ -209,6 +226,14 @@ void controller::enqueue(const std::string& url)
 //----------------------------------
 void controller::handle_queue()
 {
+  if (!msg_queue_.empty() && wake_timer_.check_and_update())
+  {
+    auto&& msg = msg_queue_.front();
+    kiq_handler.at(msg.first)(msg.second);
+    msg_queue_.pop_front();
+    was_sleeping_ = false;
+  }
+
   if (queue_.empty() || !bucket_.request(1))
     return;
 
@@ -216,4 +241,5 @@ void controller::handle_queue()
 
   kcef_->set_url(queue_.front());
   queue_.pop_front();
+
 }
