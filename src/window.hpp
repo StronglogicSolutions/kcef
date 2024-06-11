@@ -93,6 +93,7 @@ Window value() const
 void set_cef(Window cefwin)
 {
   cefwin_ = cefwin;
+  XResizeWindow(display_, cefwin_, width_, height_);
 }
 
 bool is_top() const
