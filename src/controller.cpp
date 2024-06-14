@@ -134,8 +134,9 @@ controller::controller(kcef_interface* kcef)
     }
     else
     {
-      LOG(WARNING) << "System waking. Waiting 5 seconds for connectivity.";
+      LOG(WARNING) << "System waking. Waiting 5 seconds for connectivity. Flushing IPC messages.";
       wake_timer_.reset();
+      kiq_.flush();
     }
   })
 {
@@ -226,12 +227,19 @@ void controller::enqueue(const std::string& url)
 //----------------------------------
 void controller::handle_queue()
 {
-  if (!msg_queue_.empty() && wake_timer_.check_and_update())
+  if (!msg_queue_.empty())
   {
-    auto&& msg = msg_queue_.front();
-    kiq_handler.at(msg.first)(msg.second);
-    msg_queue_.pop_front();
-    was_sleeping_ = false;
+    if (was_sleeping_ && wake_timer_.check_and_update())
+    {
+      LOG(INFO) << "Recovered from sleep";
+      was_sleeping_ = false;
+    }
+    else
+    {
+      auto&& msg = msg_queue_.front();
+      kiq_handler.at(msg.first)(msg.second);
+      msg_queue_.pop_front();
+    }
   }
 
   if (queue_.empty() || !bucket_.request(1))
