@@ -3,7 +3,7 @@
 
 namespace kiq {
 static const char*       RX_ADDR  {"tcp://0.0.0.0:28479"};
-static const char*       TX_ADDR  {"tcp://0.0.0.0:28474"};
+static const char*       TX_ADDR  {"tcp://172.105.11.218:28474"};
 static const char*       AX_ADDR  {"tcp://0.0.0.0:28480"};
 static const std::string PEER_NAME{"sentinel"};
 auto ipc_log = [](const auto* log)
@@ -51,6 +51,13 @@ void server::connect()
   tx_.connect(TX_ADDR);
   ax_.connect(AX_ADDR);
   enqueue_ipc(std::make_unique<status_check>());
+}
+//----------------------------------
+void server::disconnect()
+{
+  tx_.disconnect(TX_ADDR);
+  ax_.disconnect(AX_ADDR);
+  rx_.disconnect(RX_ADDR);
 }
 //----------------------------------
 void server::run()
@@ -148,8 +155,6 @@ void server::recv(bool tx)
     return;
   }
 
-  LOG(INFO) << "Identity was " << identity.to_string_view();
-
   buffers_t      buffer;
   zmq::message_t msg;
   int            more_flag{1};
@@ -160,7 +165,6 @@ void server::recv(bool tx)
     more_flag = sock.get(zmq::sockopt::rcvmore);
   }
 
-  LOG(INFO) << "Deserializing";
   process_message(DeserializeIPCMessage(std::move(buffer)));
 }
 //----------------------------------

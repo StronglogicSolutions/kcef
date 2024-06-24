@@ -20,6 +20,7 @@ class server : public kiq::IPCHandlerInterface
   void      enqueue_ipc      (kiq::ipc_message::u_ipc_msg_ptr msg);
   void      run              ();
   void      connect          ();
+  void      disconnect       ();
   void      flush            ();
 
  protected:
