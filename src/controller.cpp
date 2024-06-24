@@ -215,6 +215,14 @@ controller::state controller::work()
 {
   try
   {
+    if (was_sleeping_ && wake_timer_.check_and_update())
+    {
+      LOG(INFO) << "Recovered from sleep";
+      was_sleeping_ = false;
+      kiq_.disconnect();
+      kiq_.connect();
+    }
+
     kiq_.run();
     handle_queue();
 
@@ -251,30 +259,19 @@ void controller::enqueue(const std::string& url)
 //----------------------------------
 void controller::handle_queue()
 {
-  if (!msg_queue_.empty())
+  if (!msg_queue_.empty() && !was_sleeping_)
   {
-    if (!was_sleeping_)
+    auto& msg = msg_queue_.front();
+    try
     {
-      auto& msg = msg_queue_.front();
-      try
-      {
-        kiq_handler.at(msg.first)(msg.second);
-      }
-      catch (const std::exception& e)
-      {
-        LOG(ERROR) << "Exception caught while calling kiq handler: " << e.what();
-      }
+      kiq_handler.at(msg.first)(msg.second);
+    }
+    catch (const std::exception& e)
+    {
+      LOG(ERROR) << "Exception caught while calling kiq handler: " << e.what();
+    }
 
-      msg_queue_.pop_front();
-    }
-    else
-    if (wake_timer_.check_and_update())
-    {
-      LOG(INFO) << "Recovered from sleep";
-      was_sleeping_ = false;
-      kiq_.disconnect();
-      kiq_.connect();
-    }
+    msg_queue_.pop_front();
   }
 
   if (queue_.empty() || !bucket_.request(1))
