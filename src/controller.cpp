@@ -34,7 +34,10 @@ controller::controller(kcef_interface* kcef)
 
       try
       {
-        kiq_handler.at(type)(args);
+        if (was_sleeping_)
+          msg_queue_.push_back({type, { type, args.at(1) } });
+        else
+          kiq_handler.at(type)(args);
       }
       catch(const std::exception& e)
       {
@@ -48,10 +51,9 @@ controller::controller(kcef_interface* kcef)
 
       LOG(INFO) << "Info command: " << type;
       LOG(INFO) << "Info payload: " << std::string{data.begin(), (data.size() > 500) ?
-                                                        data.begin() + 500 : data.end()};
+                                                         data.begin() + 500 : data.end()};
       try
       {
-
         if (was_sleeping_)
           msg_queue_.push_back({type, { type, data } });
         else
@@ -69,6 +71,21 @@ controller::controller(kcef_interface* kcef)
       if (app_active_)
         throw std::runtime_error{"App already active. Not changing URL"};
 
+      const auto& url     = args.at(1);
+      const auto  cef_url = kcef_->get_url();
+
+      LOG(INFO) << "Requesting to load: " << url << ". Browser page is currently: " << cef_url;
+
+      if (url == cef_url)
+      {
+        LOG(WARNING) << "URLs are the same";
+        if (const double time = kcef_->idle_time(); time < 600.0f)
+        {
+          LOG(WARNING) << "Must wait at least 10 minutes to reload page. Time since last load event: " << time;
+          return;
+        }
+      }
+
       kcef_->focus();
       enqueue(args.at(1));
     }
@@ -80,6 +97,9 @@ controller::controller(kcef_interface* kcef)
 
       if (!kcef_->has_focus())
         throw std::runtime_error{"Won't run query until KCEF in focus"};
+
+      if (kcef_->idle_time() == -1.0f)
+        throw std::runtime_error{"Browser isn't ready: No URL loaded"};
 
       LOG(INFO) << "Received query. Setting app to active";
       app_active_  = true;
@@ -109,8 +129,13 @@ controller::controller(kcef_interface* kcef)
     },
     { "info",  [this](auto args)                                       // ANALYZE REQUEST
     {
-      LOG(INFO) << "Handling scroll test";
-      kcef_->analyze();
+      if (const auto& arg = args.at(1); arg == "scroll")
+      {
+        LOG(INFO) << "Handling scroll test";
+        kcef_->analyze();
+      }
+      else
+        LOG(WARNING) << "Unknown command: " << arg;
     },
     },
     { "generate", [this](const std::vector<std::string>& args)
@@ -134,9 +159,8 @@ controller::controller(kcef_interface* kcef)
     }
     else
     {
-      LOG(WARNING) << "System waking. Waiting 5 seconds for connectivity. Flushing IPC messages.";
+      LOG(WARNING) << "System waking. Waiting 5 seconds for connectivity.";
       wake_timer_.reset();
-      kiq_.flush();
     }
   })
 {
@@ -229,16 +253,27 @@ void controller::handle_queue()
 {
   if (!msg_queue_.empty())
   {
-    if (was_sleeping_ && wake_timer_.check_and_update())
+    if (!was_sleeping_)
+    {
+      auto& msg = msg_queue_.front();
+      try
+      {
+        kiq_handler.at(msg.first)(msg.second);
+      }
+      catch (const std::exception& e)
+      {
+        LOG(ERROR) << "Exception caught while calling kiq handler: " << e.what();
+      }
+
+      msg_queue_.pop_front();
+    }
+    else
+    if (wake_timer_.check_and_update())
     {
       LOG(INFO) << "Recovered from sleep";
       was_sleeping_ = false;
-    }
-    else
-    {
-      auto&& msg = msg_queue_.front();
-      kiq_handler.at(msg.first)(msg.second);
-      msg_queue_.pop_front();
+      kiq_.disconnect();
+      kiq_.connect();
     }
   }
 

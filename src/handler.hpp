@@ -4,6 +4,7 @@
 #include <include/cef_request_context_handler.h>
 #include "interface.hpp"
 #include "window.hpp"
+#include <ctime>
 
 static const int32_t DEFAULT_KCEF_ID = 99;
 class KCEFClient : public CefClient,
@@ -28,6 +29,7 @@ class KCEFClient : public CefClient,
   void          on_finish()                       final;
   void          run ()                            final;
   unsigned long get_window()                const final;
+  double        idle_time ()                const final;
 
   static KCEFClient* GetInstance();
                                                                           // CefClient methods
@@ -70,6 +72,8 @@ class KCEFClient : public CefClient,
   std::string current_source_;
   src_cb_t    cb_;
   xwindow     window_;
+  std::time_t load_time_{0};
+
 
   IMPLEMENT_REFCOUNTING(KCEFClient);
 };

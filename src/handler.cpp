@@ -15,6 +15,8 @@
 #include <X11/Xlib.h>
 #endif
 
+const char* g_result_recipient = "https://x.com/messages/1399461905148809216-1623001010623983627";
+
 namespace {
 
 KCEFClient* g_instance = nullptr;
@@ -247,6 +249,9 @@ void KCEFClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
   if (code == 200)
     query("get");
   scroll(0);
+
+  load_time_ = std::time(nullptr);
+
 }
 //---------------------------------------------------------------------------
 void
@@ -259,4 +264,16 @@ unsigned long
 KCEFClient::get_window() const
 {
   return window_.value();
+}
+
+double
+KCEFClient::idle_time () const
+{
+  if (!load_time_)
+  {
+    LOG(WARNING) << "Cannot give idle time: no page has yet loaded";
+    return -1.0f;
+  }
+
+  return std::difftime(std::time(nullptr), load_time_);
 }

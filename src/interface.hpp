@@ -20,4 +20,5 @@ class kcef_interface
   virtual unsigned long get_window()                   const = 0;
   virtual void          run       ()                         = 0;
   virtual void          on_finish ()                         = 0;
+  virtual double        idle_time ()                   const = 0;
 };
