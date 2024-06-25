@@ -285,9 +285,9 @@ async function create_analysis(nlp, doc)
     deferred.p = new Promise(resolve => { deferred.r = resolve })
     deferred.t = new Promise(async resolve =>
       {
-        await delay(500000)
-        console.log('Timeout while fetching users')
-        resolve()
+        await delay(1500000)
+        console.error('Timeout while fetching users')
+        process.exit(1)
       })
 
     for (let i = 0; i < select.length; i++)
@@ -313,6 +313,9 @@ async function create_analysis(nlp, doc)
 
   await compute_resolutions()
   await fetch_users()
+
+  console.log('Sending analysis')
+
   await controller.send(JSON.stringify(select), "analysis")
 
   console.log('Sent analysis')
