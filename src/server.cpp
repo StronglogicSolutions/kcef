@@ -45,8 +45,11 @@ void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
   msgs_.push_back(std::move(msg));
 }
 //----------------------------------
-void server::connect()
+void server::connect(bool reconnect)
 {
+  if (reconnect)
+    disconnect();
+
   rx_.bind   (RX_ADDR);
   tx_.connect(TX_ADDR);
   ax_.connect(AX_ADDR);

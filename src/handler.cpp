@@ -15,7 +15,7 @@
 #include <X11/Xlib.h>
 #endif
 
-const char* g_result_recipient = "https://x.com/messages/1399461905148809216-1623001010623983627";
+static const char*  g_result_recipient = "https://x.com/messages/1399461905148809216-1623001010623983627";
 
 namespace {
 
@@ -272,7 +272,7 @@ KCEFClient::idle_time () const
   if (!load_time_)
   {
     LOG(WARNING) << "Cannot give idle time: no page has yet loaded";
-    return -1.0f;
+    return kcef_interface::never_loaded();
   }
 
   return std::difftime(std::time(nullptr), load_time_);
