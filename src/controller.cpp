@@ -22,7 +22,7 @@ escape_s(const std::string& s)
 controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
   kiq_({
-    {kiq::constants::IPC_STATUS,         [this](auto msg) { LOG(INFO) << "Received IPC status"; kiq_.connect(); }},
+    {kiq::constants::IPC_STATUS,         [this](auto msg) { LOG(INFO) << "Received IPC status"; kiq_.connect(true); }},
     {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg) { (void)("NOOP"); }},
     {kiq::constants::IPC_KIQ_MESSAGE,    [this](auto msg) // IPC MSG HANDLER
     {
@@ -98,7 +98,7 @@ controller::controller(kcef_interface* kcef)
       if (!kcef_->has_focus())
         throw std::runtime_error{"Won't run query until KCEF in focus"};
 
-      if (kcef_->idle_time() == -1.0f)
+      if (kcef_->idle_time() == kcef_interface::never_loaded())
         throw std::runtime_error{"Browser isn't ready: No URL loaded"};
 
       LOG(INFO) << "Received query. Setting app to active";
@@ -219,8 +219,7 @@ controller::state controller::work()
     {
       LOG(INFO) << "Recovered from sleep";
       was_sleeping_ = false;
-      kiq_.disconnect();
-      kiq_.connect();
+      kiq_.connect(true);
     }
 
     kiq_.run();
@@ -232,6 +231,7 @@ controller::state controller::work()
       proc_future_.wait();
       proc_future_.get();
       app_waiting_ = false;
+      timer_.stop();
     }
     else
     if (app_active_ && timer_.check_and_update())

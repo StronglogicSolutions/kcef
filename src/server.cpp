@@ -3,7 +3,7 @@
 
 namespace kiq {
 static const char*       RX_ADDR  {"tcp://0.0.0.0:28479"};
-static const char*       TX_ADDR  {"tcp://172.105.11.218:28474"};
+static const char*       TX_ADDR  {"tcp://0.0.0.0:28474"};
 static const char*       AX_ADDR  {"tcp://0.0.0.0:28480"};
 static const std::string PEER_NAME{"sentinel"};
 auto ipc_log = [](const auto* log)
@@ -37,7 +37,6 @@ server::server(ipc_dispatch_t dispatch)
   kiq::set_log_fn(ipc_log);
 
   connect();
-  flush();
 }
 //----------------------------------
 void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
@@ -45,8 +44,14 @@ void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
   msgs_.push_back(std::move(msg));
 }
 //----------------------------------
-void server::connect()
+void server::connect(bool reconnect)
 {
+  if (reconnect)
+  {
+    flush();
+    disconnect();
+  }
+
   rx_.bind   (RX_ADDR);
   tx_.connect(TX_ADDR);
   ax_.connect(AX_ADDR);
