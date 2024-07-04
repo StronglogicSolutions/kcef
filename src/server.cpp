@@ -48,8 +48,18 @@ void server::connect(bool reconnect)
 {
   if (reconnect)
   {
-    flush();
     disconnect();
+
+    try
+    {
+      tx_ = zmq::socket_t{context_, ZMQ_DEALER};
+      rx_ = zmq::socket_t{context_, ZMQ_DEALER};
+      ax_ = zmq::socket_t{context_, ZMQ_DEALER};
+    }
+    catch(const std::exception& e)
+    {
+      LOG(ERROR) << "Error creating new sockets after disconnecting." << e.what();
+    }
   }
 
   rx_.bind   (RX_ADDR);
@@ -60,9 +70,16 @@ void server::connect(bool reconnect)
 //----------------------------------
 void server::disconnect()
 {
-  tx_.close();
-  ax_.close();
-  rx_.close();
+  try
+  {
+    tx_.close();
+    ax_.close();
+    rx_.close();
+  }
+  catch(const std::exception& e)
+  {
+    LOG(ERROR) << "Error closing sockets." << e.what();
+  }
 }
 //----------------------------------
 void server::run()
@@ -203,5 +220,6 @@ void server::flush()
       }
     }
   }
+  LOG(INFO) << "Finished flushing RX socket";
 }
 } // ns kiq
