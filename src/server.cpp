@@ -3,7 +3,7 @@
 
 namespace kiq {
 static const char*       RX_ADDR  {"tcp://0.0.0.0:28479"};
-static const char*       TX_ADDR  {"tcp://172.105.11.218:28474"};
+static const char*       TX_ADDR  {"tcp://0.0.0.0:28474"};
 static const char*       AX_ADDR  {"tcp://0.0.0.0:28480"};
 static const std::string PEER_NAME{"sentinel"};
 auto ipc_log = [](const auto* log)
