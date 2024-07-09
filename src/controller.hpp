@@ -36,9 +36,10 @@ using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>
   browse_queue_t        queue_;
   kutils::bucket<1, 5>  bucket_;               // 1 request / 5 seconds
   kutils::timer<1800000> timer_;               // 1800 seconds / 30 minutes
-  bool                  app_waiting_ {false};
-  bool                  app_active_  {false};
-  bool                  was_sleeping_{false};
+  bool                  app_waiting_  {false};
+  bool                  app_requested_{false};
+  bool                  app_active_   {false};
+  bool                  was_sleeping_ {false};
   std::future<void>     proc_future_;
   kiq::ksys             ksys_;
   kutils::timer<5000>   wake_timer_;           // 5 seconds

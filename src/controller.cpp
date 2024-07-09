@@ -23,7 +23,15 @@ controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
   kiq_({
     {kiq::constants::IPC_STATUS,         [this](auto msg) { LOG(INFO) << "Received IPC status"; kiq_.connect(true); }},
-    {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg) { (void)("NOOP"); }},
+    {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg)
+    {
+      static unsigned int hb_count = 0;
+
+      if (++hb_count % 200 == 0)
+        LOG(INFO) << "Heartbeats: " << hb_count;
+
+      kiq_.enqueue_ipc(std::make_unique<kiq::keepalive>());
+    }},
     {kiq::constants::IPC_KIQ_MESSAGE,    [this](auto msg) // IPC MSG HANDLER
     {
       json_t     data = json_t::parse(static_cast<kiq_msg_t*>(msg.get())->payload(), nullptr, false);
@@ -68,7 +76,7 @@ controller::controller(kcef_interface* kcef)
   kiq_handler({
     { "message", [this](auto args)                                     // KIQ REQUESTS
     {
-      if (app_active_)
+      if (app_requested_)
         throw std::runtime_error{"App already active. Not changing URL"};
 
       const auto& url     = args.at(1);
@@ -102,14 +110,14 @@ controller::controller(kcef_interface* kcef)
         throw std::runtime_error{"Browser isn't ready: No URL loaded"};
 
       LOG(INFO) << "Received query. Setting app to active";
-      app_active_  = true;
+      app_requested_  = true;
       app_waiting_ = false;
       kcef_->query(args.at(1));
     }
     },
     { "loadurl", [this](auto args)                                     // LOAD URL
     {
-      if (!app_active_)
+      if (!app_requested_)
         LOG(WARNING) << "Received loadurl request but app isn't active";
 
       LOG(INFO) << "handling loadurl request from analyzer. App will wait for source and then send back";
@@ -120,11 +128,14 @@ controller::controller(kcef_interface* kcef)
     { "analysis", [this](auto args)                                    // ANALYSIS RESULTS
     {
       LOG(INFO) << "Handling analysis results";
-      kcef_->on_finish();
+
       app_active_ = false;
+      kcef_->on_finish();
       kiq_.set_reply_pending(false);
       kiq_.enqueue_ipc(std::make_unique<kiq::platform_info>("", args.at(0), "agitation analysis", ""));
       timer_.stop();
+
+      LOG(INFO) << "App is no longer active";
     },
     },
     { "info",  [this](auto args)                                       // ANALYZE REQUEST
@@ -168,7 +179,7 @@ controller::controller(kcef_interface* kcef)
 
   kcef_->init([this](const std::string& s)                             // QUERY CALLBACK
   {
-    if (!app_waiting_ && !app_active_)
+    if (!app_waiting_ && !app_requested_)
     {
       LOG(INFO) << "App not waiting and not active";
       return;
@@ -176,7 +187,7 @@ controller::controller(kcef_interface* kcef)
 
     const auto url = kcef_->get_url();
 
-    if (app_waiting_) // Analyzer requests additional sources before returning result
+    if (app_active_ && app_waiting_) // Analyzer requests additional sources before returning result
     {
       const auto filename = kutils::get_unix_tstring() + "_user.html";
       kutils::SaveToFile(s, filename);
@@ -188,7 +199,20 @@ controller::controller(kcef_interface* kcef)
       return;
     }
 
-    LOG(INFO) << "App is active. Will process";
+    if (!app_requested_)
+    {
+      LOG(WARNING) << "Callback failed to make use of URL. App not requested";
+      return;
+    }
+
+    if (app_active_)
+    {
+      LOG(WARNING) << "Callback failed to make use of URL. App already active";
+      return;
+    }
+
+    app_active_    = true;
+    app_requested_ = false;
 
     const auto filename = kutils::get_unix_tstring() + ".html";
     kutils::SaveToFile(s, filename);
@@ -220,6 +244,7 @@ controller::state controller::work()
       LOG(INFO) << "Recovered from sleep";
       was_sleeping_ = false;
       kiq_.connect(true);
+      kcef_->on_finish();
     }
 
     kiq_.run();
@@ -228,7 +253,7 @@ controller::state controller::work()
     if (!app_active_ && proc_future_.valid())
     {
       LOG(INFO)  << "Joining analyzer thread";
-      proc_future_.wait();
+      proc_future_.wait(); // TODO: We should wait limit of x seconds
       proc_future_.get();
       app_waiting_ = false;
       timer_.stop();
