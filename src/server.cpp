@@ -2,9 +2,9 @@
 #include "include/base/cef_logging.h"
 
 namespace kiq {
-static const char*       RX_ADDR  {"tcp://0.0.0.0:28479"};
-static const char*       TX_ADDR  {"tcp://0.0.0.0:28474"};
-static const char*       AX_ADDR  {"tcp://0.0.0.0:28480"};
+static const char*       RX_ADDR  {"tcp://0.0.0.0:xxxxx"};
+static const char*       TX_ADDR  {"tcp://0.0.0.0:xxxxx"};
+static const char*       AX_ADDR  {"tcp://0.0.0.0:xxxxx"};
 static const std::string PEER_NAME{"sentinel"};
 auto ipc_log = [](const auto* log)
 {
@@ -18,22 +18,6 @@ server::server(ipc_dispatch_t dispatch)
   ax_(context_, ZMQ_DEALER),
   dispatch_(dispatch)
 {
-  rx_.set(zmq::sockopt::linger, 0);
-  tx_.set(zmq::sockopt::linger, 0);
-  ax_.set(zmq::sockopt::linger, 0);
-  rx_.set(zmq::sockopt::routing_id, "sentinel_daemon");
-  tx_.set(zmq::sockopt::routing_id, "sentinel");
-  ax_.set(zmq::sockopt::routing_id, "sentinel_app");
-  rx_.set(zmq::sockopt::tcp_keepalive, 1);
-  tx_.set(zmq::sockopt::tcp_keepalive, 1);
-  ax_.set(zmq::sockopt::tcp_keepalive, 1);
-  rx_.set(zmq::sockopt::tcp_keepalive_idle,  300);
-  tx_.set(zmq::sockopt::tcp_keepalive_idle,  300);
-  ax_.set(zmq::sockopt::tcp_keepalive_idle,  300);
-  rx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-  tx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-  ax_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
-
   kiq::set_log_fn(ipc_log);
 
   connect();
@@ -47,49 +31,73 @@ void server::process_message(kiq::ipc_message::u_ipc_msg_ptr msg)
 void server::connect(bool reconnect)
 {
   if (reconnect)
-  {
     disconnect();
 
-    try
-    {
-      tx_ = zmq::socket_t{context_, ZMQ_DEALER};
-      rx_ = zmq::socket_t{context_, ZMQ_DEALER};
-      ax_ = zmq::socket_t{context_, ZMQ_DEALER};
-    }
-    catch(const std::exception& e)
-    {
-      LOG(ERROR) << "Error creating new sockets after disconnecting." << e.what();
-    }
+  LOG(INFO) << "Connecting sockets";
+
+  try
+  {
+    rx_.set(zmq::sockopt::linger, 0);
+    tx_.set(zmq::sockopt::linger, 0);
+    ax_.set(zmq::sockopt::linger, 0);
+    rx_.set(zmq::sockopt::routing_id, "sentinel_daemon");
+    tx_.set(zmq::sockopt::routing_id, "sentinel");
+    ax_.set(zmq::sockopt::routing_id, "sentinel_app");
+    rx_.set(zmq::sockopt::tcp_keepalive, 1);
+    tx_.set(zmq::sockopt::tcp_keepalive, 1);
+    ax_.set(zmq::sockopt::tcp_keepalive, 1);
+    rx_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+    tx_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+    ax_.set(zmq::sockopt::tcp_keepalive_idle,  300);
+    rx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
+    tx_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
+    ax_.set(zmq::sockopt::tcp_keepalive_intvl, 300);
+
+    LOG(INFO) << "Set socket options";
+
+    rx_.bind   (RX_ADDR);
+    tx_.connect(TX_ADDR);
+    ax_.connect(AX_ADDR);
+
+    LOG(INFO) << "Sockets connected";
+  }
+  catch(const std::exception& e)
+  {
+    LOG(ERROR) << "Exception caught connecting sockets: " << e.what();
   }
 
-  rx_.bind   (RX_ADDR);
-  tx_.connect(TX_ADDR);
-  ax_.connect(AX_ADDR);
   enqueue_ipc(std::make_unique<status_check>());
 }
 //----------------------------------
 void server::disconnect()
 {
+  LOG(INFO) << "Closing sockets";
   try
   {
-    tx_.close();
-    ax_.close();
-    rx_.close();
+    rx_ = zmq::socket_t(context_, ZMQ_ROUTER);
+    ax_ = zmq::socket_t(context_, ZMQ_DEALER);
+    tx_ = zmq::socket_t(context_, ZMQ_DEALER);
   }
   catch(const std::exception& e)
   {
     LOG(ERROR) << "Error closing sockets." << e.what();
   }
+
 }
 //----------------------------------
 void server::run()
 {
   if (!out_.empty())                         // TX
   {
-    auto&& msg = out_.front();
-    LOG(INFO) << "Server has outgoing message of type: " << constants::IPC_MESSAGE_NAMES.at(msg->type());
-    send_ipc_message(std::move(msg));
-    LOG(INFO) << "Message sent";
+    auto&&  msg  = out_.front();
+    if (msg)
+    {
+      uint8_t type = msg->type();
+      send_ipc_message(std::move(msg));
+
+      if (type != constants::IPC_KEEPALIVE_TYPE)
+        LOG(INFO) << "Server sent IPC of type: " << constants::IPC_MESSAGE_NAMES.at(type);
+    }
     out_.pop_front();
   }
 
@@ -150,6 +158,9 @@ zmq::socket_t& server::socket()
 //----------------------------------
 void server::set_reply_pending(bool pending)
 {
+  if (pending == reply_)
+    return;
+
   if (pending)
     LOG(INFO) << "Messages will be sent to Analyzer";
   else
@@ -160,7 +171,6 @@ void server::set_reply_pending(bool pending)
 //----------------------------------
 void server::on_done()
 {
-  LOG(INFO) << "Sent message to " << socket().get(zmq::sockopt::last_endpoint);
   set_reply_pending(false);
 }
 //----------------------------------
@@ -194,7 +204,10 @@ void server::enqueue_ipc(kiq::ipc_message::u_ipc_msg_ptr msg)
 {
   const auto& input = msg->to_string();
   const auto& msg_s = input.size() > 500 ? input.substr(0, 500) : input;
-  LOG(INFO) << "enqueueing outgoing IPC message: " << msg_s;
+
+  if (msg->type() != constants::IPC_KEEPALIVE_TYPE)
+    LOG(INFO) << "enqueueing outgoing IPC message: " << msg_s;
+
   out_.emplace_back(std::move(msg));
 }
 //----------------------------------
