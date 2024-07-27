@@ -167,11 +167,13 @@ controller::controller(kcef_interface* kcef)
     {
       LOG(WARNING) << "System will sleep";
       was_sleeping_ = true;
+      should_flush_ = true;
+      wake_timer_.reset();
     }
     else
     {
-      LOG(WARNING) << "System waking. Waiting 5 seconds for connectivity.";
-      wake_timer_.reset();
+      LOG(WARNING) << "System waking. Waiting 25 seconds for connectivity.";
+      LOG(INFO) << "Should flush";
     }
   })
 {
@@ -237,14 +239,27 @@ controller::controller(kcef_interface* kcef)
 //-----------------------------------
 controller::state controller::work()
 {
+  if (should_flush_)
+    LOG(INFO) << "\n\n\n\n##############work() called with should_flush true\n\n############";
   try
   {
-    if (was_sleeping_ && wake_timer_.check_and_update())
+    if (was_sleeping_)
     {
-      LOG(INFO) << "Recovered from sleep";
-      was_sleeping_ = false;
-      kiq_.connect(true);
-      kcef_->on_finish();
+      if (should_flush_)
+      {
+        LOG(INFO) << "Will flush";
+        wake_timer_.reset();
+        kiq_.flush();
+        should_flush_ = false;
+      }
+
+      if (wake_timer_.check_and_update())
+      {
+        LOG(INFO) << "Recovered from sleep";
+        was_sleeping_ = false;
+        kiq_.connect(true);
+        kcef_->on_finish();
+      }
     }
 
     kiq_.run();

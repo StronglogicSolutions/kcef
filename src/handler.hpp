@@ -2,6 +2,7 @@
 
 #include "include/cef_client.h"
 #include <include/cef_request_context_handler.h>
+#include <include/cef_request_handler.h>
 #include "interface.hpp"
 #include "window.hpp"
 #include <ctime>
@@ -11,8 +12,10 @@ class KCEFClient : public CefClient,
                    public CefDisplayHandler,
                    public CefLifeSpanHandler,
                    public CefLoadHandler,
+                   public CefRequestHandler,
                    public CefStringVisitor,
                    public kcef_interface
+
 {
  public:
   explicit KCEFClient();
@@ -33,27 +36,40 @@ class KCEFClient : public CefClient,
 
   static KCEFClient* GetInstance();
                                                                           // CefClient methods
-  virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler  () override { return this; }
-  virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
-  virtual CefRefPtr<CefLoadHandler> GetLoadHandler        () override { return this; }
+  virtual CefRefPtr<CefDisplayHandler>  GetDisplayHandler () final { return this; }
+  virtual CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() final { return this; }
+  virtual CefRefPtr<CefLoadHandler>     GetLoadHandler    () final { return this; }
 
   virtual void OnTitleChange(CefRefPtr<CefBrowser> browser,               // CefDisplayHandler methods
-                             const CefString&      title) override;
+                             const CefString&      title)    final;
 
-  virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;    // CefLifeSpanHandler methods
-  virtual bool DoClose       (CefRefPtr<CefBrowser> browser) override;
-  virtual void OnBeforeClose (CefRefPtr<CefBrowser> browser) override;
+  virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) final;       // CefLifeSpanHandler methods
+  virtual bool DoClose       (CefRefPtr<CefBrowser> browser) final;
+  virtual void OnBeforeClose (CefRefPtr<CefBrowser> browser) final;
 
   virtual void OnLoadError(CefRefPtr<CefBrowser> browser,                 // CefLoadHandler methods
                            CefRefPtr<CefFrame>   frame,
                            ErrorCode             errorCode,
                            const CefString&      errorText,
-                           const CefString&      failedUrl) override;
+                           const CefString&      failedUrl)  final;
 
   virtual void OnLoadEnd(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefFrame>   frame,
-                         int                   code) final;
+                         int                   code)         final;
+                                                                          // CefRequestHandler methods
 
+  CefRefPtr<CefRequestHandler> GetRequestHandler()           final
+  {
+    return this;
+  }
+
+  virtual bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                              CefRefPtr<CefFrame> frame,
+                              CefRefPtr<CefRequest> request,
+                              bool user_gesture,
+                              bool is_redirect)              final;
+
+                                                                          // CefClient methods
   void CloseAllBrowsers(bool force_close);
 
   bool IsClosing() const { return is_closing_; }
@@ -69,6 +85,7 @@ class KCEFClient : public CefClient,
 
   browsers_t  browsers_;
   bool        is_closing_;
+  bool        busy_;
   std::string current_source_;
   src_cb_t    cb_;
   xwindow     window_;

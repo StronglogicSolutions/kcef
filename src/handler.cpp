@@ -15,21 +15,19 @@
 #include <X11/Xlib.h>
 #endif
 
-static const char*  g_result_recipient = "https://x.com/messages/1399461905148809216-1623001010623983627";
-
 namespace {
-
+//---------------------------------------------------------------------------
 KCEFClient* g_instance = nullptr;
-
-// Returns a data: URI with the specified contents.
-std::string GetDataURI(const std::string& data, const std::string& mime_type) {
+//---------------------------------------------------------------------------
+std::string GetDataURI(const std::string& data, const std::string& mime_type)
+{
   return "data:" + mime_type + ";base64," +
          CefURIEncode(CefBase64Encode(data.data(), data.size()), false)
              .ToString();
 }
 
 }  // namespace
-
+//---------------------------------------------------------------------------
 static
 std::string get_scroll_command(uint32_t y)
 {
@@ -189,7 +187,6 @@ void KCEFClient::PlatformTitleChange(CefRefPtr<CefBrowser> browser,
 void KCEFClient::analyze()
 {
   scroll();
-  query("get");
 }
 //---------------------------------------------------------------------------
 void KCEFClient::scroll(uint32_t y) const
@@ -207,6 +204,9 @@ void KCEFClient::set_url(const std::string& url) const
 //---------------------------------------------------------------------------
 void KCEFClient::query(const std::string& q)
 {
+  LOG(INFO) << "Query started. Handler will be busy";
+  scroll(0);
+  busy_ = true;
   kutils::make_event([this]{ browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->GetSource(this); });
 }
 //---------------------------------------------------------------------------
@@ -229,9 +229,11 @@ bool KCEFClient::has_focus() const
 //---------------------------------------------------------------------------
 void KCEFClient::on_finish()
 {
-  LOG(INFO) << "Setting window to normal";
+  LOG(INFO) << "Setting window to normal. Handler will no longer be busy";
 
   window_.set_top(false);
+
+  busy_ = false;
 }
 //---------------------------------------------------------------------------
 void KCEFClient::Visit(const CefString& s)
@@ -247,8 +249,7 @@ void KCEFClient::OnLoadEnd(CefRefPtr<CefBrowser> browser,
 {
   LOG(INFO) << "OnLoadEnd code: " << code;
   if (code == 200)
-    query("get");
-  scroll(0);
+    kutils::make_event([this]{ browsers_[DEFAULT_KCEF_ID]->GetMainFrame()->GetSource(this); });
 
   load_time_ = std::time(nullptr);
 
@@ -276,4 +277,18 @@ KCEFClient::idle_time () const
   }
 
   return std::difftime(std::time(nullptr), load_time_);
+}
+//-------------------------------
+bool KCEFClient::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                              CefRefPtr<CefFrame> frame,
+                              CefRefPtr<CefRequest> request,
+                              bool user_gesture,
+                              bool is_redirect)
+{
+    LOG(INFO) << "OnBeforeBrowser() url: " << request->GetURL();
+    LOG(INFO) << "Busy: "                  << busy_;
+    LOG(INFO) << "Redirect: "              << is_redirect;
+    LOG(INFO) << "User gesture: "          << user_gesture;
+
+    return false;
 }

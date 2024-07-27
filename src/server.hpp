@@ -22,6 +22,7 @@ class server : public kiq::IPCHandlerInterface
   void      connect          (bool reconnect = false);
   void      disconnect       ();
   void      flush            ();
+  void      send             (kiq::ipc_message::u_ipc_msg_ptr msg);
 
  protected:
   zmq::socket_t& socket () final;

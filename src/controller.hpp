@@ -40,7 +40,8 @@ using kiq_handler_t  = std::map<std::string_view, std::function<void(payload_t)>
   bool                  app_requested_{false};
   bool                  app_active_   {false};
   bool                  was_sleeping_ {false};
+  bool                  should_flush_ {false};
   std::future<void>     proc_future_;
   kiq::ksys             ksys_;
-  kutils::timer<5000>   wake_timer_;           // 5 seconds
+  kutils::timer<25000>  wake_timer_;           // 5 seconds
 };
