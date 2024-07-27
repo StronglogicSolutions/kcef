@@ -2,9 +2,9 @@
 #include "include/base/cef_logging.h"
 
 namespace kiq {
-static const char*       RX_ADDR  {"tcp://0.0.0.0:xxxxx"};
-static const char*       TX_ADDR  {"tcp://0.0.0.0:xxxxx"};
-static const char*       AX_ADDR  {"tcp://0.0.0.0:xxxxx"};
+static const char*       RX_ADDR  {"tcp://0.0.0.0:xxx"};
+static const char*       TX_ADDR  {"tcp://0.0.0.0:xxx"};
+static const char*       AX_ADDR  {"tcp://0.0.0.0:xxx"};
 static const std::string PEER_NAME{"sentinel"};
 auto ipc_log = [](const auto* log)
 {
@@ -71,16 +71,20 @@ void server::connect(bool reconnect)
 //----------------------------------
 void server::disconnect()
 {
-  LOG(INFO) << "Closing sockets";
+  LOG(INFO) << "Closing and recreating sockets";
   try
   {
+    rx_.close();
+    ax_.close();
+    tx_.close();
+
     rx_ = zmq::socket_t(context_, ZMQ_ROUTER);
     ax_ = zmq::socket_t(context_, ZMQ_DEALER);
     tx_ = zmq::socket_t(context_, ZMQ_DEALER);
   }
   catch(const std::exception& e)
   {
-    LOG(ERROR) << "Error closing sockets." << e.what();
+    LOG(ERROR) << "Error performing disconnect: " << e.what();
   }
 
 }
@@ -89,11 +93,11 @@ void server::run()
 {
   if (!out_.empty())                         // TX
   {
-    auto&&  msg  = out_.front();
+    auto&& msg = out_.front();
     if (msg)
     {
       uint8_t type = msg->type();
-      send_ipc_message(std::move(msg));
+      send(std::move(msg));
 
       if (type != constants::IPC_KEEPALIVE_TYPE)
         LOG(INFO) << "Server sent IPC of type: " << constants::IPC_MESSAGE_NAMES.at(type);
@@ -172,6 +176,17 @@ void server::set_reply_pending(bool pending)
 void server::on_done()
 {
   set_reply_pending(false);
+}
+//----------------------------------
+void server::send(ipc_message::u_ipc_msg_ptr msg)
+{
+  if (const auto type = msg->type(); type > constants::IPC_KEEPALIVE_TYPE)
+  {
+    LOG(INFO) << "Sending IPC message: " << constants::IPC_MESSAGE_NAMES.at(msg->type());
+    LOG(INFO) << "Destination: " << get_addr();
+  }
+
+  IPCTransmitterInterface::send_ipc_message(std::move(msg));
 }
 //----------------------------------
 void server::recv(bool tx)
