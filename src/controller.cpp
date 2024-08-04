@@ -166,12 +166,12 @@ controller::controller(kcef_interface* kcef)
     if (state.suspend)
     {
       LOG(WARNING) << "System will sleep";
-      was_sleeping_ = true;
       should_flush_ = true;
       wake_timer_.reset();
     }
     else
     {
+      was_sleeping_ = true;
       LOG(WARNING) << "System waking. Waiting 25 seconds for connectivity.";
       LOG(INFO) << "Should flush";
     }
@@ -239,8 +239,12 @@ controller::controller(kcef_interface* kcef)
 //-----------------------------------
 controller::state controller::work()
 {
-  if (should_flush_)
-    LOG(INFO) << "\n\n\n\n##############work() called with should_flush true\n\n############";
+  if (should_flush_ && !was_sleeping_)
+  {
+    LOG(WARNING) << "Post-suspend flush planned, but still waiting for wake";
+    return state::work;
+  }
+
   try
   {
     if (was_sleeping_)
