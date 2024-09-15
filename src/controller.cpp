@@ -22,7 +22,13 @@ escape_s(const std::string& s)
 controller::controller(kcef_interface* kcef)
 : kcef_(kcef),
   kiq_({
-    {kiq::constants::IPC_STATUS,         [this](auto msg) { LOG(INFO) << "Received IPC status"; kiq_.connect(true); }},
+    {kiq::constants::IPC_STATUS,         [this](auto msg)
+    {
+      LOG(INFO) << "Received IPC status";
+      kiq_.enqueue_ipc(std::make_unique<kiq::okay_message>());
+      kiq_.connect(true);
+      kiq_.enqueue_ipc(std::make_unique<kiq::keepalive>());
+    }},
     {kiq::constants::IPC_KEEPALIVE_TYPE, [this](auto msg)
     {
       static unsigned int hb_count = 0;
@@ -265,6 +271,9 @@ controller::state controller::work()
         kcef_->on_finish();
       }
     }
+    else
+    if (should_flush_)
+      kiq_.disconnect();
 
     kiq_.run();
     handle_queue();

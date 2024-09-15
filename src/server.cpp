@@ -67,6 +67,7 @@ void server::connect(bool reconnect)
   }
 
   enqueue_ipc(std::make_unique<status_check>());
+  enqueue_ipc(std::make_unique<keepalive>());
 }
 //----------------------------------
 void server::disconnect()
